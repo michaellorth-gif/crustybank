@@ -31,8 +31,8 @@ router.get('/', async (req: AuthRequest, res) => {
         .where(
           and(
             eq(schema.events.userId, req.userId!),
-            gte(schema.events.startTime, new Date(start as string)),
-            lte(schema.events.endTime, new Date(end as string))
+            gte(schema.events.startTime, new Date(start as string).toISOString()),
+            lte(schema.events.endTime, new Date(end as string).toISOString())
           )
         )
     }
@@ -53,7 +53,7 @@ router.get('/upcoming', async (req: AuthRequest, res) => {
       .where(
         and(
           eq(schema.events.userId, req.userId!),
-          gte(schema.events.startTime, new Date())
+          gte(schema.events.startTime, new Date().toISOString())
         )
       )
       .orderBy(schema.events.startTime)
@@ -75,8 +75,8 @@ router.post('/', async (req: AuthRequest, res) => {
         userId: req.userId!,
         title: data.title,
         description: data.description,
-        startTime: new Date(data.startTime),
-        endTime: new Date(data.endTime),
+        startTime: new Date(data.startTime).toISOString(),
+        endTime: new Date(data.endTime).toISOString(),
         allDay: data.allDay || false,
         color: data.color || '#3b82f6',
       })
@@ -99,9 +99,9 @@ router.patch('/:id', async (req: AuthRequest, res) => {
       .update(schema.events)
       .set({
         ...data,
-        startTime: data.startTime ? new Date(data.startTime) : undefined,
-        endTime: data.endTime ? new Date(data.endTime) : undefined,
-        updatedAt: new Date(),
+        startTime: data.startTime ? new Date(data.startTime).toISOString() : undefined,
+        endTime: data.endTime ? new Date(data.endTime).toISOString() : undefined,
+        updatedAt: new Date().toISOString(),
       })
       .where(and(eq(schema.events.id, req.params.id), eq(schema.events.userId, req.userId!)))
       .returning()

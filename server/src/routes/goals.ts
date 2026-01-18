@@ -47,7 +47,7 @@ router.post('/', async (req: AuthRequest, res) => {
         userId: req.userId!,
         title: data.title,
         description: data.description,
-        targetDate: data.targetDate ? new Date(data.targetDate) : null,
+        targetDate: data.targetDate ? new Date(data.targetDate).toISOString() : null,
         milestones,
         progress,
       })
@@ -77,9 +77,9 @@ router.patch('/:id', async (req: AuthRequest, res) => {
       .update(schema.goals)
       .set({
         ...data,
-        targetDate: data.targetDate !== undefined ? (data.targetDate ? new Date(data.targetDate) : null) : undefined,
+        targetDate: data.targetDate !== undefined ? (data.targetDate ? new Date(data.targetDate).toISOString() : null) : undefined,
         progress,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       })
       .where(and(eq(schema.goals.id, req.params.id), eq(schema.goals.userId, req.userId!)))
       .returning()
@@ -119,7 +119,7 @@ router.patch('/:goalId/milestones/:milestoneId/toggle', async (req: AuthRequest,
 
     const [updated] = await db
       .update(schema.goals)
-      .set({ milestones, progress, updatedAt: new Date() })
+      .set({ milestones, progress, updatedAt: new Date().toISOString() })
       .where(eq(schema.goals.id, req.params.goalId))
       .returning()
 

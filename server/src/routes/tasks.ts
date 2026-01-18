@@ -41,7 +41,7 @@ router.post('/', async (req: AuthRequest, res) => {
         title: data.title,
         description: data.description,
         priority: data.priority || 'medium',
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
       })
       .returning()
 
@@ -62,8 +62,8 @@ router.patch('/:id', async (req: AuthRequest, res) => {
       .update(schema.tasks)
       .set({
         ...data,
-        dueDate: data.dueDate !== undefined ? (data.dueDate ? new Date(data.dueDate) : null) : undefined,
-        updatedAt: new Date(),
+        dueDate: data.dueDate !== undefined ? (data.dueDate ? new Date(data.dueDate).toISOString() : null) : undefined,
+        updatedAt: new Date().toISOString(),
       })
       .where(and(eq(schema.tasks.id, req.params.id), eq(schema.tasks.userId, req.userId!)))
       .returning()

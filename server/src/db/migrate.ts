@@ -1,19 +1,25 @@
 import 'dotenv/config'
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { migrate } from 'drizzle-orm/node-postgres/migrator'
-import pg from 'pg'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import Database from 'better-sqlite3'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import fs from 'fs'
 
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-})
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../data/app.db')
 
-const db = drizzle(pool)
-
-async function runMigrations() {
-  console.log('Running migrations...')
-  await migrate(db, { migrationsFolder: './drizzle' })
-  console.log('Migrations complete!')
-  await pool.end()
+// Ensure the data directory exists
+const dataDir = path.dirname(dbPath)
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true })
 }
 
-runMigrations().catch(console.error)
+const sqlite = new Database(dbPath)
+const db = drizzle(sqlite)
+
+console.log('Running migrations...')
+migrate(db, { migrationsFolder: './drizzle' })
+console.log('Migrations complete!')
+
+sqlite.close()

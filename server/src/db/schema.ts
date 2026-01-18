@@ -1,58 +1,58 @@
-import { pgTable, uuid, varchar, text, timestamp, boolean, integer, jsonb } from 'drizzle-orm/pg-core'
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
 
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  name: varchar('name', { length: 255 }).notNull(),
-  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  email: text('email').notNull().unique(),
+  name: text('name').notNull(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: text('created_at').$defaultFn(() => new Date().toISOString()).notNull(),
+  updatedAt: text('updated_at').$defaultFn(() => new Date().toISOString()).notNull(),
 })
 
-export const tasks = pgTable('tasks', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  title: varchar('title', { length: 255 }).notNull(),
+export const tasks = sqliteTable('tasks', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  title: text('title').notNull(),
   description: text('description'),
-  completed: boolean('completed').default(false).notNull(),
-  priority: varchar('priority', { length: 20 }).default('medium').notNull(),
-  dueDate: timestamp('due_date'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  completed: integer('completed', { mode: 'boolean' }).default(false).notNull(),
+  priority: text('priority').default('medium').notNull(),
+  dueDate: text('due_date'),
+  createdAt: text('created_at').$defaultFn(() => new Date().toISOString()).notNull(),
+  updatedAt: text('updated_at').$defaultFn(() => new Date().toISOString()).notNull(),
 })
 
-export const goals = pgTable('goals', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  title: varchar('title', { length: 255 }).notNull(),
+export const goals = sqliteTable('goals', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  title: text('title').notNull(),
   description: text('description'),
-  targetDate: timestamp('target_date'),
+  targetDate: text('target_date'),
   progress: integer('progress').default(0).notNull(),
-  milestones: jsonb('milestones').$type<Array<{ id: string; title: string; completed: boolean }>>().default([]),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  milestones: text('milestones', { mode: 'json' }).$type<Array<{ id: string; title: string; completed: boolean }>>().default([]),
+  createdAt: text('created_at').$defaultFn(() => new Date().toISOString()).notNull(),
+  updatedAt: text('updated_at').$defaultFn(() => new Date().toISOString()).notNull(),
 })
 
-export const notes = pgTable('notes', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  title: varchar('title', { length: 255 }).notNull(),
+export const notes = sqliteTable('notes', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  title: text('title').notNull(),
   content: text('content'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  createdAt: text('created_at').$defaultFn(() => new Date().toISOString()).notNull(),
+  updatedAt: text('updated_at').$defaultFn(() => new Date().toISOString()).notNull(),
 })
 
-export const events = pgTable('events', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  title: varchar('title', { length: 255 }).notNull(),
+export const events = sqliteTable('events', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  title: text('title').notNull(),
   description: text('description'),
-  startTime: timestamp('start_time').notNull(),
-  endTime: timestamp('end_time').notNull(),
-  allDay: boolean('all_day').default(false).notNull(),
-  color: varchar('color', { length: 20 }).default('#3b82f6').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  startTime: text('start_time').notNull(),
+  endTime: text('end_time').notNull(),
+  allDay: integer('all_day', { mode: 'boolean' }).default(false).notNull(),
+  color: text('color').default('#3b82f6').notNull(),
+  createdAt: text('created_at').$defaultFn(() => new Date().toISOString()).notNull(),
+  updatedAt: text('updated_at').$defaultFn(() => new Date().toISOString()).notNull(),
 })
 
 export type User = typeof users.$inferSelect

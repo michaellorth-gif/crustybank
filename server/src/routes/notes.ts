@@ -55,7 +55,7 @@ router.patch('/:id', async (req: AuthRequest, res) => {
       .update(schema.notes)
       .set({
         ...data,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       })
       .where(and(eq(schema.notes.id, req.params.id), eq(schema.notes.userId, req.userId!)))
       .returning()

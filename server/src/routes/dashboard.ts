@@ -25,8 +25,8 @@ router.get('/stats', async (req: AuthRequest, res) => {
         and(
           eq(schema.tasks.userId, req.userId!),
           eq(schema.tasks.completed, false),
-          gte(schema.tasks.dueDate, startOfDay),
-          lte(schema.tasks.dueDate, endOfDay)
+          gte(schema.tasks.dueDate, startOfDay.toISOString()),
+          lte(schema.tasks.dueDate, endOfDay.toISOString())
         )
       )
 
@@ -48,8 +48,8 @@ router.get('/stats', async (req: AuthRequest, res) => {
       .where(
         and(
           eq(schema.events.userId, req.userId!),
-          gte(schema.events.startTime, startOfWeek),
-          lte(schema.events.startTime, endOfWeek)
+          gte(schema.events.startTime, startOfWeek.toISOString()),
+          lte(schema.events.startTime, endOfWeek.toISOString())
         )
       )
 
@@ -60,7 +60,7 @@ router.get('/stats', async (req: AuthRequest, res) => {
       .where(
         and(
           eq(schema.notes.userId, req.userId!),
-          gte(schema.notes.updatedAt, last7Days)
+          gte(schema.notes.updatedAt, last7Days.toISOString())
         )
       )
 
