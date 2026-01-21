@@ -36,11 +36,14 @@ router.post('/register', async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10)
 
-    // Create user
+    // Create user (first user becomes admin)
+    const existingUsers = await db.select().from(schema.users).limit(1)
+    const isFirstUser = existingUsers.length === 0
+
     const [user] = await db
       .insert(schema.users)
-      .values({ name, email, passwordHash })
-      .returning({ id: schema.users.id, email: schema.users.email, name: schema.users.name })
+      .values({ name, email, passwordHash, role: isFirstUser ? 'admin' : 'user' })
+      .returning({ id: schema.users.id, email: schema.users.email, name: schema.users.name, role: schema.users.role })
 
     // Generate token
     const token = jwt.sign(
@@ -88,7 +91,7 @@ router.post('/login', async (req, res) => {
     )
 
     res.json({
-      user: { id: user.id, email: user.email, name: user.name },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
       token,
     })
   } catch (error) {
