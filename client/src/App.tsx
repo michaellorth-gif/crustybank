@@ -9,6 +9,11 @@ import Notes from './pages/Notes'
 import Chat from './pages/Chat'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Teams from './pages/Teams'
+import Documents from './pages/Documents'
+import Workflows from './pages/Workflows'
+import Emails from './pages/Emails'
+import Admin from './pages/Admin'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
@@ -34,6 +39,11 @@ function App() {
         <Route path="calendar" element={<Calendar />} />
         <Route path="notes" element={<Notes />} />
         <Route path="chat" element={<Chat />} />
+        <Route path="teams" element={<Teams />} />
+        <Route path="documents" element={<Documents />} />
+        <Route path="workflows" element={<Workflows />} />
+        <Route path="emails" element={<Emails />} />
+        <Route path="admin" element={<Admin />} />
       </Route>
     </Routes>
   )

@@ -9,6 +9,11 @@ import {
   MessageSquare,
   LogOut,
   User,
+  Users,
+  FolderOpen,
+  Zap,
+  Mail,
+  Shield,
 } from 'lucide-react'
 
 const navItems = [
@@ -18,6 +23,14 @@ const navItems = [
   { path: '/calendar', icon: Calendar, label: 'Calendar' },
   { path: '/notes', icon: FileText, label: 'Notes' },
   { path: '/chat', icon: MessageSquare, label: 'AI Chat' },
+]
+
+const adminNavItems = [
+  { path: '/teams', icon: Users, label: 'Teams' },
+  { path: '/documents', icon: FolderOpen, label: 'Documents' },
+  { path: '/workflows', icon: Zap, label: 'Automation' },
+  { path: '/emails', icon: Mail, label: 'Email Assistant' },
+  { path: '/admin', icon: Shield, label: 'Admin', adminOnly: true },
 ]
 
 export default function Layout() {
@@ -37,7 +50,7 @@ export default function Layout() {
           <h1 className="text-xl font-bold text-primary-600">Personal Assistant</h1>
         </div>
 
-        <nav className="flex-1 p-4">
+        <nav className="flex-1 p-4 overflow-y-auto">
           <ul className="space-y-1">
             {navItems.map(({ path, icon: Icon, label }) => (
               <li key={path}>
@@ -58,6 +71,33 @@ export default function Layout() {
               </li>
             ))}
           </ul>
+
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <p className="px-4 text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+              Admin Tools
+            </p>
+            <ul className="space-y-1">
+              {adminNavItems
+                .filter((item) => !item.adminOnly || user?.role === 'admin')
+                .map(({ path, icon: Icon, label }) => (
+                  <li key={path}>
+                    <NavLink
+                      to={path}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                          isActive
+                            ? 'bg-primary-50 text-primary-700 font-medium'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`
+                      }
+                    >
+                      <Icon size={20} />
+                      {label}
+                    </NavLink>
+                  </li>
+                ))}
+            </ul>
+          </div>
         </nav>
 
         <div className="p-4 border-t border-gray-200">
