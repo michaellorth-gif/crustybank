@@ -2047,26 +2047,37 @@ async function fetchGoogleEvents() {
 
 // ─── ICS FETCHING ─────────────────────────────────────────
 async function fetchICS(url, source) {
-  // Convert webcal:// to https://
   const fetchUrl = url.replace('webcal://', 'https://');
-  // Use a CORS proxy
-  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(fetchUrl)}`;
-  try {
-    const res = await fetch(proxyUrl);
-    if (!res.ok) throw new Error('Failed to fetch ICS');
-    const text = await res.text();
-    const events = parseICS(text, source);
-    state.events = state.events.filter(e => e.source !== source);
-    state.events.push(...events);
-    updateSourceStatus(source, 'connected');
-    renderCalendar();
-    renderMiniCal();
-    return true;
-  } catch(e) {
-    console.error(`ICS fetch error (${source}):`, e);
-    updateSourceStatus(source, 'error');
-    return false;
+  
+  const proxies = [
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://cors-anywhere.herokuapp.com/${u}`,
+  ];
+
+  for (const makeProxy of proxies) {
+    try {
+      const proxyUrl = makeProxy(fetchUrl);
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      const text = await res.text();
+      if (!text.includes('BEGIN:VCALENDAR')) continue;
+      const events = parseICS(text, source);
+      state.events = state.events.filter(e => e.source !== source);
+      state.events.push(...events);
+      updateSourceStatus(source, 'connected');
+      renderCalendar();
+      renderMiniCal();
+      return true;
+    } catch(e) {
+      console.warn(`Proxy failed for ${source}:`, e.message);
+      continue;
+    }
   }
+
+  console.error(`All proxies failed for ${source}`);
+  updateSourceStatus(source, 'error');
+  return false;
 }
 
 function parseICS(text, source) {
