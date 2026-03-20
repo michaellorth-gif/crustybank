@@ -1088,15 +1088,133 @@
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
 
-  /* MOBILE */
+  /* MOBILE BOTTOM NAV */
+  .mobile-bottom-nav { display: none; }
+  .mobile-fab { display: none; }
+  .mobile-week-strip { display: none; }
+  .mobile-header { display: none; }
+
   @media (max-width: 768px) {
-    .main { grid-template-columns: 1fr; }
+    .header { display: none; }
     .sidebar { display: none; }
-    .sidebar.mobile-open { display: flex; position: fixed; inset: 60px 0 0 0; z-index: 90; width: 100%; }
-    .cal-title { font-size: 16px; min-width: 0; }
-    .header { padding: 0 16px; gap: 12px; }
-    .agenda-view { padding: 0 16px 24px; }
-    .month-view { padding: 8px 16px 16px; }
+    .status-bar { display: none; }
+    .cal-toolbar { display: none; }
+
+    .app { grid-template-rows: 1fr; }
+    .main { grid-template-columns: 1fr; height: 100dvh; display: flex; flex-direction: column; }
+
+    .mobile-header {
+      display: flex !important;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px 8px;
+      padding-top: max(12px, env(safe-area-inset-top));
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .mobile-header-left { display: flex; flex-direction: column; }
+    .mobile-header-date { font-family: "DM Serif Display", serif; font-size: 22px; line-height: 1.1; }
+    .mobile-header-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .mobile-header-right { display: flex; gap: 8px; align-items: center; }
+    .mobile-icon-btn {
+      width: 36px; height: 36px; border-radius: 50%; border: none;
+      background: var(--surface2); color: var(--text); font-size: 16px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+
+    .mobile-week-strip {
+      display: flex !important;
+      overflow-x: auto;
+      padding: 10px 16px;
+      gap: 4px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .mobile-week-strip::-webkit-scrollbar { display: none; }
+    .mobile-week-day {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 4px; cursor: pointer; flex-shrink: 0; width: 42px;
+    }
+    .mobile-week-day-name { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light); }
+    .mobile-week-day-num {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 500; color: var(--text-muted); transition: all 0.15s;
+    }
+    .mobile-week-day.today .mobile-week-day-num { background: var(--accent); color: white; font-weight: 700; }
+    .mobile-week-day.selected:not(.today) .mobile-week-day-num { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+    .mobile-week-day-dot { width: 4px; height: 4px; border-radius: 50%; background: transparent; }
+    .mobile-week-day.has-events .mobile-week-day-dot { background: var(--text-light); }
+    .mobile-week-day.today .mobile-week-day-dot { background: white; }
+
+    .calendar-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+    .day-view { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+    .day-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 120px; }
+    .day-grid { display: grid; grid-template-columns: 48px 1fr; }
+
+    .agenda-view { padding: 0 16px; padding-bottom: 120px; }
+    .month-view { padding: 8px 12px; padding-bottom: 120px; }
+
+    .mobile-fab {
+      display: flex !important;
+      position: fixed;
+      bottom: calc(68px + env(safe-area-inset-bottom));
+      right: 20px;
+      width: 54px; height: 54px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white; font-size: 26px;
+      border: none; cursor: pointer;
+      align-items: center; justify-content: center;
+      box-shadow: 0 4px 16px rgba(45,91,227,0.4);
+      z-index: 50;
+      transition: transform 0.15s;
+    }
+    .mobile-fab:active { transform: scale(0.92); }
+
+    .mobile-bottom-nav {
+      display: flex !important;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: calc(60px + env(safe-area-inset-bottom));
+      padding-bottom: env(safe-area-inset-bottom);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      z-index: 40;
+      align-items: center; justify-content: space-around;
+    }
+    .mobile-nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 8px 12px; border: none; background: none; cursor: pointer;
+      color: var(--text-light); transition: color 0.15s; font-family: "DM Sans", sans-serif;
+    }
+    .mobile-nav-item.active { color: var(--accent); }
+    .mobile-nav-icon { font-size: 20px; line-height: 1; }
+    .mobile-nav-label { font-size: 10px; font-weight: 600; letter-spacing: 0.3px; }
+
+    .mobile-tasks-drawer { position: fixed; inset: 0; z-index: 200; pointer-events: none; }
+    .mobile-tasks-drawer.open { pointer-events: all; }
+    .mobile-tasks-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.25s; }
+    .mobile-tasks-drawer.open .mobile-tasks-backdrop { opacity: 1; }
+    .mobile-tasks-sheet {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: var(--surface); border-radius: 20px 20px 0 0;
+      padding: 0 20px calc(40px + env(safe-area-inset-bottom));
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+      max-height: 85dvh; overflow-y: auto;
+    }
+    .mobile-tasks-drawer.open .mobile-tasks-sheet { transform: translateY(0); }
+    .mobile-tasks-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 16px; }
+    .mobile-tasks-title { font-family: "DM Serif Display", serif; font-size: 20px; margin-bottom: 16px; }
+
+    .agenda-event { padding: 12px 14px; }
+    .connect-screen { padding: 20px 16px 40px; }
+    .connect-cards { max-width: 100%; }
   }
 
   /* CONNECT SCREEN */
@@ -1282,6 +1400,61 @@
           <span id="appleStatusBar">Apple: not synced</span>
         </div>
         <div style="margin-left:auto;" id="lastSyncTime"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBILE HEADER -->
+  <div class="mobile-header" id="mobileHeader">
+    <div class="mobile-header-left">
+      <div class="mobile-header-date" id="mobileHeaderDate"></div>
+      <div class="mobile-header-sub" id="mobileHeaderSub"></div>
+    </div>
+    <div class="mobile-header-right">
+      <button class="mobile-icon-btn" onclick="syncAll()" title="Sync">↻</button>
+      <button class="mobile-icon-btn" onclick="showView('connect')" title="Sources">⚙</button>
+    </div>
+  </div>
+
+  <!-- MOBILE WEEK STRIP -->
+  <div class="mobile-week-strip" id="mobileWeekStrip"></div>
+
+  <!-- MOBILE FAB -->
+  <button class="mobile-fab" onclick="openNewEvent()">+</button>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="mobile-bottom-nav">
+    <button class="mobile-nav-item active" id="mobileNavDay" onclick="mobileSwitchView('day', this)">
+      <span class="mobile-nav-icon">☀</span>
+      <span class="mobile-nav-label">Day</span>
+    </button>
+    <button class="mobile-nav-item" id="mobileNavWeek" onclick="mobileSwitchView('week', this)">
+      <span class="mobile-nav-icon">📅</span>
+      <span class="mobile-nav-label">Week</span>
+    </button>
+    <button class="mobile-nav-item" id="mobileNavAgenda" onclick="mobileSwitchView('agenda', this)">
+      <span class="mobile-nav-icon">☰</span>
+      <span class="mobile-nav-label">Agenda</span>
+    </button>
+    <button class="mobile-nav-item" id="mobileNavTasks" onclick="openMobileTasks()">
+      <span class="mobile-nav-icon">✓</span>
+      <span class="mobile-nav-label">Tasks</span>
+    </button>
+  </nav>
+
+  <!-- MOBILE TASKS DRAWER -->
+  <div class="mobile-tasks-drawer" id="mobileTasksDrawer">
+    <div class="mobile-tasks-backdrop" onclick="closeMobileTasks()"></div>
+    <div class="mobile-tasks-sheet">
+      <div class="mobile-tasks-handle"></div>
+      <div class="mobile-tasks-title">Tasks &amp; Notes</div>
+      <div class="task-input-row">
+        <input class="task-input" id="mobileTaskInput" placeholder="Add a task..." onkeydown="if(event.key==='Enter') addMobileTask()">
+        <button class="task-add-btn" onclick="addMobileTask()">+</button>
+      </div>
+      <div class="tasks-list" id="mobileTasksList"></div>
+      <div class="notes-area" style="margin-top:16px;">
+        <textarea class="notes-textarea" id="mobileNotesArea" placeholder="Scratch notes..." oninput="saveMobileNotes()" style="min-height:120px;"></textarea>
       </div>
     </div>
   </div>
@@ -2225,6 +2398,166 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
   if (e.key === 'n' && !e.target.matches('input,textarea,[contenteditable]')) openNewEvent();
+});
+
+// ─── MOBILE ───────────────────────────────────────────────
+const isMobile = () => window.innerWidth <= 768;
+
+function mobileInit() {
+  if (!isMobile()) return;
+  // Default to day view on mobile
+  state.view = 'day';
+  renderMobileHeader();
+  renderMobileWeekStrip();
+  renderCalendar();
+}
+
+function renderMobileHeader() {
+  if (!isMobile()) return;
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const d = state.current;
+  const isToday = isSameDay(d, state.today);
+  const dateEl = document.getElementById('mobileHeaderDate');
+  const subEl = document.getElementById('mobileHeaderSub');
+  if (dateEl) dateEl.textContent = isToday ? 'Today' : days[d.getDay()];
+  if (subEl) subEl.textContent = months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+}
+
+function renderMobileWeekStrip() {
+  if (!isMobile()) return;
+  const strip = document.getElementById('mobileWeekStrip');
+  if (!strip) return;
+  strip.innerHTML = '';
+  const shortDays = ['S','M','T','W','T','F','S'];
+  // Show 14 days centered on today
+  const start = new Date(state.today);
+  start.setDate(start.getDate() - 3);
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(start); d.setDate(d.getDate() + i);
+    const isToday = isSameDay(d, state.today);
+    const isSelected = isSameDay(d, state.current);
+    const hasEv = state.events.some(e => isSameDay(e.start, d));
+    const el = document.createElement('div');
+    el.className = 'mobile-week-day' + (isToday ? ' today' : '') + (isSelected ? ' selected' : '') + (hasEv ? ' has-events' : '');
+    el.innerHTML = '<div class="mobile-week-day-name">' + shortDays[d.getDay()] + '</div>' +
+      '<div class="mobile-week-day-num">' + d.getDate() + '</div>' +
+      '<div class="mobile-week-day-dot"></div>';
+    const captured = new Date(d);
+    el.onclick = () => {
+      state.current = captured;
+      if (state.view !== 'day' && state.view !== 'week') { state.view = 'day'; }
+      renderMobileHeader();
+      renderMobileWeekStrip();
+      renderCalendar();
+    };
+    strip.appendChild(el);
+  }
+  // Scroll selected day into view
+  setTimeout(() => {
+    const selected = strip.querySelector('.selected');
+    if (selected) selected.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+  }, 50);
+}
+
+function mobileSwitchView(v, btn) {
+  state.view = v;
+  document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderMobileHeader();
+  renderMobileWeekStrip();
+  renderCalendar();
+}
+
+function openMobileTasks() {
+  const drawer = document.getElementById('mobileTasksDrawer');
+  if (drawer) drawer.classList.add('open');
+  // Sync tasks and notes to mobile drawer
+  renderMobileTasksList();
+  const notesEl = document.getElementById('mobileNotesArea');
+  if (notesEl) notesEl.value = state.notes;
+}
+
+function closeMobileTasks() {
+  const drawer = document.getElementById('mobileTasksDrawer');
+  if (drawer) drawer.classList.remove('open');
+}
+
+function addMobileTask() {
+  const input = document.getElementById('mobileTaskInput');
+  const text = input.value.trim();
+  if (!text) return;
+  state.tasks.push({ id: Date.now(), text, done: false });
+  input.value = '';
+  saveLocal();
+  renderMobileTasksList();
+  renderTasks();
+}
+
+function renderMobileTasksList() {
+  const list = document.getElementById('mobileTasksList');
+  if (!list) return;
+  list.innerHTML = '';
+  const active = state.tasks.filter(t => !t.done);
+  const done = state.tasks.filter(t => t.done);
+  [...active, ...done].forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'task-item';
+    el.innerHTML = '<div class="task-check' + (t.done ? ' done' : '') + '" onclick="toggleMobileTask(' + t.id + ')"></div>' +
+      '<div class="task-text' + (t.done ? ' done' : '') + '">' + t.text + '</div>' +
+      '<div class="task-actions"><button class="task-action-btn" onclick="deleteTask(' + t.id + ');renderMobileTasksList()" title="Delete">✕</button></div>';
+    list.appendChild(el);
+  });
+}
+
+function toggleMobileTask(id) {
+  const t = state.tasks.find(t => t.id === id);
+  if (t) { t.done = !t.done; saveLocal(); renderMobileTasksList(); renderTasks(); }
+}
+
+function saveMobileNotes() {
+  state.notes = document.getElementById('mobileNotesArea').value;
+  saveLocal();
+}
+
+// Swipe navigation on mobile
+let touchStartX = 0;
+let touchStartY = 0;
+document.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+document.addEventListener('touchend', e => {
+  if (!isMobile()) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60) {
+    if (dx < 0) navigate(1);
+    else navigate(-1);
+    renderMobileHeader();
+    renderMobileWeekStrip();
+  }
+}, { passive: true });
+
+// Override navigate to update mobile UI
+const _origNavigate = navigate;
+// Patch renderCalendar to also update mobile UI
+const _origRenderCalendar = renderCalendar;
+function renderCalendar() {
+  _origRenderCalendar();
+  if (isMobile()) {
+    renderMobileHeader();
+    renderMobileWeekStrip();
+  }
+}
+
+// Init mobile on load
+window.addEventListener('load', () => {
+  if (isMobile()) mobileInit();
+});
+window.addEventListener('resize', () => {
+  if (isMobile()) mobileInit();
 });
 </script>
 </body>
