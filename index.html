@@ -2250,40 +2250,14 @@ function initGoogleAuth() {
       }
     }
   });
-  // Try to restore token from session and verify it's still valid
+  // Restore token from session if available - no auto-popup, user clicks to reconnect
   const saved = sessionStorage.getItem('googleToken');
   if (saved) {
     state.googleToken = saved;
-    // Verify token is still valid before using it
-    fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + saved)
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          // Token expired - clear it and try silent re-auth
-          sessionStorage.removeItem('googleToken');
-          state.googleToken = null;
-          updateSourceStatus('google', 'error');
-          setTimeout(() => {
-            try { window.googleClient.requestAccessToken({ prompt: '' }); }
-            catch(e) { updateSourceStatus('google', 'error'); }
-          }, 500);
-        } else {
-          updateSourceStatus('google', 'connected');
-          fetchGoogleEvents();
-        }
-      })
-      .catch(() => {
-        sessionStorage.removeItem('googleToken');
-        state.googleToken = null;
-        updateSourceStatus('google', 'error');
-      });
-  } else {
-    // Try silent sign-in
-    setTimeout(() => {
-      try { window.googleClient.requestAccessToken({ prompt: '' }); }
-      catch(e) { /* silent fail - user will click connect */ }
-    }, 1500);
+    updateSourceStatus('google', 'connected');
+    fetchGoogleEvents();
   }
+  // If no token, user will click Connect in Sources tab
 }
 
 function connectGoogle() {
@@ -2301,6 +2275,13 @@ async function fetchGoogleEvents() {
     const future = new Date(); future.setMonth(future.getMonth() + 3);
     const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${future.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=250`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${state.googleToken}` } });
+    if (res.status === 401) {
+      // Token expired - clear it and prompt user to reconnect
+      sessionStorage.removeItem('googleToken');
+      state.googleToken = null;
+      updateSourceStatus('google', 'reconnect');
+      return;
+    }
     const data = await res.json();
     if (data.items) {
       state.events = state.events.filter(e => e.source !== 'google');
@@ -2464,12 +2445,15 @@ function updateSourceStatus(source, status) {
   const labels = { outlook: 'Outlook', google: 'Google', apple: 'Apple' };
   const name = labels[source];
 
-  if (dotEl) dotEl.className = `status-dot ${status === 'connected' ? 'connected' : status === 'error' ? 'error' : ''}`;
-  if (barEl) barEl.textContent = `${name}: ${status === 'connected' ? 'synced' : status === 'error' ? 'error' : 'not connected'}`;
-  if (sideEl) sideEl.textContent = status === 'connected' ? '✓' : status === 'error' ? '!' : '—';
+  const isConnected = status === 'connected';
+  const isError = status === 'error' || status === 'reconnect';
+
+  if (dotEl) dotEl.className = `status-dot ${isConnected ? 'connected' : isError ? 'error' : ''}`;
+  if (barEl) barEl.textContent = `${name}: ${isConnected ? 'synced' : status === 'reconnect' ? 'tap to reconnect' : isError ? 'error' : 'not connected'}`;
+  if (sideEl) sideEl.textContent = isConnected ? '✓' : isError ? '↻' : '—';
   if (cardEl) {
-    cardEl.textContent = status === 'connected' ? 'Connected' : status === 'error' ? 'Error' : 'Set up';
-    cardEl.className = `connect-card-status ${status === 'connected' ? 'connected' : status === 'error' ? 'manual' : 'manual'}`;
+    cardEl.textContent = isConnected ? 'Connected' : status === 'reconnect' ? 'Reconnect' : isError ? 'Error' : 'Set up';
+    cardEl.className = `connect-card-status ${isConnected ? 'connected' : 'manual'}`;
   }
 }
 
