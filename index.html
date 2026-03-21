@@ -629,7 +629,7 @@
 
   .hour-label {
     grid-column: 1;
-    height: 56px;
+    height: 72px;
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
@@ -643,7 +643,7 @@
 
   .hour-row {
     grid-column: 2 / -1;
-    height: 56px;
+    height: 72px;
     border-bottom: 1px solid var(--border);
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -1217,8 +1217,8 @@
     .connect-cards { max-width: 100%; }
 
     /* Tighter grid on mobile */
-    .hour-label { height: 44px; font-size: 9px; padding: 3px 4px 0; width: 36px; }
-    .hour-row { height: 44px; }
+    .hour-label { height: 52px; font-size: 9px; padding: 3px 4px 0; width: 36px; }
+    .hour-row { height: 52px; }
     .week-header { grid-template-columns: 36px repeat(7, 1fr); }
     .week-grid { grid-template-columns: 36px repeat(7, 1fr); }
     .week-day-header { padding: 6px 2px; }
@@ -1402,6 +1402,7 @@
           <button class="view-btn active" onclick="setView('week')">Week</button>
           <button class="view-btn" onclick="setView('month')">Month</button>
           <button class="view-btn" onclick="setView('agenda')">Agenda</button>
+          <button class="view-btn" onclick="setView('notes')">Notes</button>
         </div>
       </div>
 
@@ -1458,9 +1459,9 @@
       <span class="mobile-nav-icon">☰</span>
       <span class="mobile-nav-label">Agenda</span>
     </button>
-    <button class="mobile-nav-item" id="mobileNavTasks" onclick="openMobileTasks()">
-      <span class="mobile-nav-icon">✓</span>
-      <span class="mobile-nav-label">Tasks</span>
+    <button class="mobile-nav-item" id="mobileNavNotes" onclick="mobileSwitchView('notes', this)">
+      <span class="mobile-nav-icon">📝</span>
+      <span class="mobile-nav-label">Notes</span>
     </button>
   </nav>
 
@@ -1645,6 +1646,9 @@ window.onload = () => {
 
   // Update time indicator every minute
   setInterval(() => { if (state.view === 'week' || state.view === 'day') renderCalendar(); }, 60000);
+
+  // Initialize notifications
+  initNotifications();
 };
 
 // ─── LOCAL STORAGE ────────────────────────────────────────
@@ -1770,6 +1774,13 @@ function renderCalendar() {
   } else if (state.view === 'agenda') {
     document.getElementById('calTitle').textContent = 'Upcoming';
     container.innerHTML = renderAgendaView();
+  } else if (state.view === 'notes') {
+    document.getElementById('calTitle').textContent = 'Notes & Tasks';
+    container.innerHTML = renderNotesView();
+    // Restore saved content
+    const ta = document.getElementById('notesViewArea');
+    if (ta) { ta.value = state.notes; ta.oninput = () => { state.notes = ta.value; saveLocal(); }; }
+    renderNotesTasksList();
   }
   // Update mobile UI
   if (window.innerWidth <= 768) {
@@ -1849,8 +1860,8 @@ function positionWeekEvents(weekStart) {
     const startH = ev.start.getHours() + ev.start.getMinutes() / 60;
     const endH = ev.end.getHours() + ev.end.getMinutes() / 60;
     const duration = Math.max(endH - startH, 0.5);
-    const top = startH * 56;
-    const height = duration * 56 - 2;
+    const top = startH * 72;
+    const height = duration * 72 - 2;
 
     const hourRows = grid.querySelectorAll('.hour-row');
     if (!hourRows[0]) return;
@@ -1913,7 +1924,7 @@ function renderWeekEventsOverlay(weekStart, weekEvents) {
     const overlay = document.createElement('div');
     overlay.className = 'day-overlay';
     overlay.id = `day-overlay-${dayIdx}`;
-    overlay.style.cssText = `position:absolute;top:0;left:${colRect.left - gridRect.left}px;width:${colRect.width}px;height:${24*56}px;pointer-events:none;`;
+    overlay.style.cssText = `position:absolute;top:0;left:${colRect.left - gridRect.left}px;width:${colRect.width}px;height:${24*72}px;pointer-events:none;`;
     grid.style.position = 'relative';
     grid.appendChild(overlay);
 
@@ -1926,8 +1937,8 @@ function renderWeekEventsOverlay(weekStart, weekEvents) {
       const startH = ev.start.getHours() + ev.start.getMinutes() / 60;
       const endH = ev.end.getHours() + ev.end.getMinutes() / 60;
       const duration = Math.max(endH - startH, 0.5);
-      const top = startH * 56;
-      const height = duration * 56 - 2;
+      const top = startH * 72;
+      const height = duration * 72 - 2;
       const cls = ev.source === 'outlook' ? 'work' : ev.source === 'apple' ? 'apple' : ev.type === 'deadline' ? 'deadline' : 'personal';
 
       const el = document.createElement('div');
@@ -1944,7 +1955,7 @@ function setTimeIndicator() {
   document.querySelectorAll('.time-indicator').forEach(e => e.remove());
   const now = new Date();
   const h = now.getHours() + now.getMinutes() / 60;
-  const top = h * 56;
+  const top = h * 72;
   const grid = document.getElementById('weekGrid');
   if (grid) {
     const ind = document.createElement('div');
@@ -1955,7 +1966,7 @@ function setTimeIndicator() {
     // Scroll to current time
     setTimeout(() => {
       const body = grid.closest('.week-body') || grid.closest('.day-body');
-      if (body) body.scrollTop = Math.max(0, top - 150);
+      if (body) body.scrollTop = Math.max(0, top - 200);
     }, 100);
   }
 }
@@ -1965,7 +1976,7 @@ function renderDayView(date) {
   for (let h = 0; h < 24; h++) {
     const label = h === 0 ? '' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h-12}pm`;
     html += `<div class="hour-label">${label}</div>
-    <div class="hour-cell" style="height:56px;border-bottom:1px solid var(--border);position:relative;" onclick="quickAddEvent(${date.getFullYear()},${date.getMonth()},${date.getDate()},${h})"></div>`;
+    <div class="hour-cell" style="height:72px;border-bottom:1px solid var(--border);position:relative;" onclick="quickAddEvent(${date.getFullYear()},${date.getMonth()},${date.getDate()},${h})"></div>`;
   }
   html += `</div></div></div>`;
   return html;
@@ -1979,8 +1990,8 @@ function positionDayEvents(date) {
     const startH = ev.start.getHours() + ev.start.getMinutes() / 60;
     const endH = ev.end.getHours() + ev.end.getMinutes() / 60;
     const duration = Math.max(endH - startH, 0.5);
-    const top = startH * 56;
-    const height = duration * 56 - 2;
+    const top = startH * 72;
+    const height = duration * 72 - 2;
     const cls = ev.source === 'outlook' ? 'work' : ev.source === 'apple' ? 'apple' : ev.type === 'deadline' ? 'deadline' : 'personal';
 
     const cells = grid.querySelectorAll('.hour-cell');
@@ -2441,6 +2452,273 @@ function updateSourceStatus(source, status) {
     cardEl.className = `connect-card-status ${status === 'connected' ? 'connected' : status === 'error' ? 'manual' : 'manual'}`;
   }
 }
+
+// ─── NOTES VIEW ──────────────────────────────────────────
+function renderNotesView() {
+  return `<div style="flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:20px;padding-bottom:40px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex:1;">
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-light);">Scratch Notes</div>
+        <textarea id="notesViewArea" placeholder="Jot anything here..." style="flex:1;min-height:400px;padding:14px;border:1px solid var(--border);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;background:var(--surface);color:var(--text);outline:none;resize:none;line-height:1.6;"></textarea>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-light);">Tasks</div>
+        <div style="display:flex;gap:6px;margin-bottom:4px;">
+          <input class="task-input" id="notesTaskInput" placeholder="Add a task..." style="flex:1;" onkeydown="if(event.key==='Enter') addNotesTask()">
+          <button class="task-add-btn" onclick="addNotesTask()">+</button>
+        </div>
+        <div id="notesTasksList" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function addNotesTask() {
+  const input = document.getElementById('notesTaskInput');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+  state.tasks.push({ id: Date.now(), text, done: false });
+  input.value = '';
+  saveLocal();
+  renderNotesTasksList();
+  renderTasks();
+}
+
+function renderNotesTasksList() {
+  const list = document.getElementById('notesTasksList');
+  if (!list) return;
+  list.innerHTML = '';
+  const active = state.tasks.filter(t => !t.done);
+  const done = state.tasks.filter(t => t.done);
+  [...active, ...done].forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'task-item';
+    el.innerHTML = `<div class="task-check${t.done ? ' done' : ''}" onclick="toggleNotesTask(${t.id})"></div>
+      <div class="task-text${t.done ? ' done' : ''}" contenteditable="true" onblur="editTask(${t.id}, this.textContent)">${t.text}</div>
+      <div class="task-actions">
+        <button class="task-action-btn" onclick="openScheduleTask(${t.id})" title="Schedule">📅</button>
+        <button class="task-action-btn" onclick="deleteTask(${t.id});renderNotesTasksList()" title="Delete">✕</button>
+      </div>`;
+    list.appendChild(el);
+  });
+}
+
+function toggleNotesTask(id) {
+  const t = state.tasks.find(t => t.id === id);
+  if (t) { t.done = !t.done; saveLocal(); renderNotesTasksList(); renderTasks(); }
+}
+
+// ─── NOTIFICATIONS ───────────────────────────────────────
+function initNotifications() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+
+  // Register service worker for background notifications
+  registerServiceWorker();
+
+  // Request permission if not already granted
+  if (Notification.permission === 'default') {
+    // Show a friendly prompt first rather than cold browser prompt
+    showNotificationPrompt();
+  } else if (Notification.permission === 'granted') {
+    scheduleNotifications();
+  }
+}
+
+function showNotificationPrompt() {
+  // Only show once
+  if (localStorage.getItem('notifPromptShown')) return;
+  localStorage.setItem('notifPromptShown', '1');
+
+  const banner = document.createElement('div');
+  banner.id = 'notifBanner';
+  banner.style.cssText = `position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--text);color:white;padding:14px 20px;border-radius:12px;
+    display:flex;align-items:center;gap:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);
+    font-size:13px;max-width:380px;width:90%;`;
+  banner.innerHTML = `
+    <span>🔔</span>
+    <span style="flex:1;line-height:1.4;">Get daily 9pm reminders of tomorrow's schedule?</span>
+    <button onclick="enableNotifications()" style="background:var(--accent);color:white;border:none;
+      padding:7px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;
+      font-weight:600;cursor:pointer;white-space:nowrap;">Turn on</button>
+    <button onclick="this.closest('#notifBanner').remove()" style="background:none;border:none;
+      color:rgba(255,255,255,0.6);font-size:18px;cursor:pointer;padding:0 4px;">✕</button>`;
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 12000);
+}
+
+async function enableNotifications() {
+  document.getElementById('notifBanner')?.remove();
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') {
+    scheduleNotifications();
+    showToast('Notifications enabled ✓');
+  }
+}
+
+function scheduleNotifications() {
+  // Clear any existing scheduled checks
+  if (window._notifInterval) clearInterval(window._notifInterval);
+
+  // Check every minute if it's time to notify
+  window._notifInterval = setInterval(checkNotificationTime, 60000);
+  checkNotificationTime(); // check immediately on load too
+}
+
+function checkNotificationTime() {
+  if (Notification.permission !== 'granted') return;
+
+  const now = new Date();
+  const h = now.getHours();
+  const min = now.getMinutes();
+  const day = now.getDay(); // 0=Sun
+
+  // Only fire at 9:00pm (21:00)
+  if (h !== 21 || min !== 0) return;
+
+  // Check if we already sent today
+  const todayKey = now.toDateString();
+  if (localStorage.getItem('lastNotif') === todayKey) return;
+  localStorage.setItem('lastNotif', todayKey);
+
+  if (day === 0) {
+    // Sunday 9pm → weekly preview
+    sendWeeklyNotification(now);
+  } else {
+    // Mon-Sat 9pm → tomorrow's events
+    sendDailyNotification(now);
+  }
+}
+
+function sendDailyNotification(now) {
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  const tomorrowEnd = new Date(tomorrow);
+  tomorrowEnd.setHours(23, 59, 59);
+
+  const events = state.events
+    .filter(e => e.start >= tomorrow && e.start <= tomorrowEnd)
+    .sort((a, b) => a.start - b.start);
+
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const dayName = days[tomorrow.getDay()];
+
+  let body;
+  if (events.length === 0) {
+    body = `Nothing scheduled — enjoy the open day.`;
+  } else {
+    body = events.slice(0, 5).map(e =>
+      `${e.allDay ? 'All day' : formatTime(e.start)} · ${e.title}`
+    ).join('
+');
+    if (events.length > 5) body += `
++${events.length - 5} more`;
+  }
+
+  fireNotification(
+    `${dayName}: ${events.length} event${events.length !== 1 ? 's' : ''}`,
+    body,
+    events.length > 0 ? '📅' : '☀️'
+  );
+}
+
+function sendWeeklyNotification(now) {
+  const monday = new Date(now);
+  monday.setDate(monday.getDate() + 1);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  sunday.setHours(23, 59, 59);
+
+  const events = state.events
+    .filter(e => e.start >= monday && e.start <= sunday)
+    .sort((a, b) => a.start - b.start);
+
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  let body;
+  if (events.length === 0) {
+    body = 'Clear week ahead.';
+  } else {
+    // Group by day
+    const byDay = {};
+    events.forEach(e => {
+      const k = e.start.toDateString();
+      if (!byDay[k]) byDay[k] = { day: days[e.start.getDay()], count: 0 };
+      byDay[k].count++;
+    });
+    body = Object.values(byDay).map(d => `${d.day}: ${d.count} event${d.count !== 1 ? 's' : ''}`).join('
+');
+    body += `
+${events.length} total`;
+  }
+
+  fireNotification(
+    `Week Ahead: ${events.length} event${events.length !== 1 ? 's' : ''}`,
+    body,
+    '🗓'
+  );
+}
+
+function fireNotification(title, body, icon = '📅') {
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: icon,
+      badge: icon,
+      tag: 'morth-calendar',
+      renotify: true,
+      requireInteraction: false,
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch(e) {
+    console.warn('Notification failed:', e);
+  }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+    background:var(--text);color:white;padding:10px 18px;border-radius:20px;
+    font-size:13px;z-index:9999;pointer-events:none;`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+async function registerServiceWorker() {
+  try {
+    // Inline service worker via blob — no separate file needed
+    const swCode = `
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.openWindow('/crustybank'));
+});
+self.addEventListener('push', e => {
+  const data = e.data ? e.data.json() : {};
+  self.registration.showNotification(data.title || 'Morth Calendar', {
+    body: data.body || '',
+    icon: data.icon || '📅',
+  });
+});`;
+    const blob = new Blob([swCode], { type: 'application/javascript' });
+    const swUrl = URL.createObjectURL(blob);
+    await navigator.serviceWorker.register(swUrl, { scope: '/crustybank/' });
+  } catch(e) {
+    console.warn('SW registration failed:', e.message);
+    // Notifications still work without SW, just no background push
+  }
+}
+
+// Manual test trigger (accessible from console: testNotification())
+window.testNotification = () => {
+  if (Notification.permission !== 'granted') {
+    enableNotifications();
+    return;
+  }
+  sendDailyNotification(new Date());
+};
 
 // ─── HELPERS ──────────────────────────────────────────────
 function isSameDay(a, b) {
