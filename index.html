@@ -1749,6 +1749,47 @@ function renderCalendar() {
     document.getElementById('calTitle').textContent = 'Upcoming';
     container.innerHTML = renderAgendaView();
   }
+  // Update mobile UI
+  if (window.innerWidth <= 768) {
+    renderMobileHeaderDirect();
+    renderMobileWeekStripDirect();
+  }
+}
+
+function renderMobileHeaderDirect() {
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const d = state.current;
+  const dateEl = document.getElementById('mobileHeaderDate');
+  const subEl = document.getElementById('mobileHeaderSub');
+  if (dateEl) dateEl.textContent = isSameDay(d, state.today) ? 'Today' : days[d.getDay()];
+  if (subEl) subEl.textContent = months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+}
+
+function renderMobileWeekStripDirect() {
+  const strip = document.getElementById('mobileWeekStrip');
+  if (!strip) return;
+  strip.innerHTML = '';
+  const shortDays = ['S','M','T','W','T','F','S'];
+  const start = new Date(state.today); start.setDate(start.getDate() - 3);
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(start); d.setDate(d.getDate() + i);
+    const isToday = isSameDay(d, state.today);
+    const isSelected = isSameDay(d, state.current);
+    const hasEv = state.events.some(e => isSameDay(e.start, d));
+    const el = document.createElement('div');
+    el.className = 'mobile-week-day' + (isToday ? ' today' : '') + (isSelected ? ' selected' : '') + (hasEv ? ' has-events' : '');
+    el.innerHTML = '<div class="mobile-week-day-name">' + shortDays[d.getDay()] + '</div>' +
+      '<div class="mobile-week-day-num">' + d.getDate() + '</div>' +
+      '<div class="mobile-week-day-dot"></div>';
+    const captured = new Date(d);
+    el.onclick = () => { state.current = captured; renderCalendar(); };
+    strip.appendChild(el);
+  }
+  setTimeout(() => {
+    const sel = strip.querySelector('.selected');
+    if (sel) sel.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+  }, 50);
 }
 
 function renderWeekView(weekStart) {
@@ -2170,16 +2211,31 @@ function initGoogleAuth() {
     callback: (resp) => {
       if (resp.access_token) {
         state.googleToken = resp.access_token;
+        sessionStorage.setItem('googleToken', resp.access_token);
         updateSourceStatus('google', 'connected');
         fetchGoogleEvents();
       }
     }
   });
+  // Try to restore token from session
+  const saved = sessionStorage.getItem('googleToken');
+  if (saved) {
+    state.googleToken = saved;
+    updateSourceStatus('google', 'connected');
+    fetchGoogleEvents();
+  } else {
+    // Try silent sign-in
+    setTimeout(() => {
+      try {
+        window.googleClient.requestAccessToken({ prompt: '' });
+      } catch(e) { /* silent fail - user will click connect */ }
+    }, 1500);
+  }
 }
 
 function connectGoogle() {
   if (window.googleClient) {
-    window.googleClient.requestAccessToken();
+    window.googleClient.requestAccessToken({ prompt: 'select_account' });
   } else {
     alert('Google API not loaded yet. Please wait a moment and try again.');
   }
@@ -2405,67 +2461,16 @@ const isMobile = () => window.innerWidth <= 768;
 
 function mobileInit() {
   if (!isMobile()) return;
-  // Default to day view on mobile
   state.view = 'day';
-  renderMobileHeader();
-  renderMobileWeekStrip();
   renderCalendar();
 }
 
-function renderMobileHeader() {
-  if (!isMobile()) return;
-  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const d = state.current;
-  const isToday = isSameDay(d, state.today);
-  const dateEl = document.getElementById('mobileHeaderDate');
-  const subEl = document.getElementById('mobileHeaderSub');
-  if (dateEl) dateEl.textContent = isToday ? 'Today' : days[d.getDay()];
-  if (subEl) subEl.textContent = months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
-}
-
-function renderMobileWeekStrip() {
-  if (!isMobile()) return;
-  const strip = document.getElementById('mobileWeekStrip');
-  if (!strip) return;
-  strip.innerHTML = '';
-  const shortDays = ['S','M','T','W','T','F','S'];
-  // Show 14 days centered on today
-  const start = new Date(state.today);
-  start.setDate(start.getDate() - 3);
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(start); d.setDate(d.getDate() + i);
-    const isToday = isSameDay(d, state.today);
-    const isSelected = isSameDay(d, state.current);
-    const hasEv = state.events.some(e => isSameDay(e.start, d));
-    const el = document.createElement('div');
-    el.className = 'mobile-week-day' + (isToday ? ' today' : '') + (isSelected ? ' selected' : '') + (hasEv ? ' has-events' : '');
-    el.innerHTML = '<div class="mobile-week-day-name">' + shortDays[d.getDay()] + '</div>' +
-      '<div class="mobile-week-day-num">' + d.getDate() + '</div>' +
-      '<div class="mobile-week-day-dot"></div>';
-    const captured = new Date(d);
-    el.onclick = () => {
-      state.current = captured;
-      if (state.view !== 'day' && state.view !== 'week') { state.view = 'day'; }
-      renderMobileHeader();
-      renderMobileWeekStrip();
-      renderCalendar();
-    };
-    strip.appendChild(el);
-  }
-  // Scroll selected day into view
-  setTimeout(() => {
-    const selected = strip.querySelector('.selected');
-    if (selected) selected.scrollIntoView({ inline: 'center', behavior: 'smooth' });
-  }, 50);
-}
+// renderMobileHeaderDirect and renderMobileWeekStripDirect are defined above in renderCalendar section
 
 function mobileSwitchView(v, btn) {
   state.view = v;
   document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  renderMobileHeader();
-  renderMobileWeekStrip();
   renderCalendar();
 }
 
@@ -2542,15 +2547,7 @@ document.addEventListener('touchend', e => {
 
 // Override navigate to update mobile UI
 const _origNavigate = navigate;
-// Patch renderCalendar to also update mobile UI
-const _origRenderCalendar = renderCalendar;
-function renderCalendar() {
-  _origRenderCalendar();
-  if (isMobile()) {
-    renderMobileHeader();
-    renderMobileWeekStrip();
-  }
-}
+// Mobile UI updates are called directly from renderCalendar
 
 // Init mobile on load
 window.addEventListener('load', () => {
