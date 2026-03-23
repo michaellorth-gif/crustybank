@@ -1133,6 +1133,9 @@
       flex-shrink: 0;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
+      position: sticky;
+      top: 0;
+      z-index: 30;
     }
     .mobile-week-strip::-webkit-scrollbar { display: none; }
     .mobile-week-day {
@@ -1151,13 +1154,13 @@
     .mobile-week-day.has-events .mobile-week-day-dot { background: var(--text-light); }
     .mobile-week-day.today .mobile-week-day-dot { background: white; }
 
-    .calendar-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+    .calendar-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
 
     .day-view { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-    .day-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 120px; }
-    .day-grid { display: grid; grid-template-columns: 48px 1fr; }
+    .day-body { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding-bottom: 120px; }
+    .day-grid { display: grid; grid-template-columns: 48px 1fr; min-width: 0; }
 
-    .agenda-view { padding: 0 16px; padding-bottom: 120px; }
+    .agenda-view { padding: 0 16px; padding-bottom: 120px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
     .month-view { padding: 8px 12px; padding-bottom: 120px; }
 
     .mobile-fab {
@@ -1447,7 +1450,7 @@
 
   <!-- MOBILE BOTTOM NAV -->
   <nav class="mobile-bottom-nav">
-    <button class="mobile-nav-item active" id="mobileNavDay" onclick="mobileSwitchView('day', this)">
+    <button class="mobile-nav-item" id="mobileNavDay" onclick="mobileSwitchView('day', this)">
       <span class="mobile-nav-icon">☀</span>
       <span class="mobile-nav-label">Day</span>
     </button>
@@ -1455,7 +1458,7 @@
       <span class="mobile-nav-icon">📅</span>
       <span class="mobile-nav-label">Week</span>
     </button>
-    <button class="mobile-nav-item" id="mobileNavAgenda" onclick="mobileSwitchView('agenda', this)">
+    <button class="mobile-nav-item active" id="mobileNavAgenda" onclick="mobileSwitchView('agenda', this)">
       <span class="mobile-nav-icon">☰</span>
       <span class="mobile-nav-label">Agenda</span>
     </button>
@@ -1804,8 +1807,8 @@ function renderMobileWeekStripDirect() {
   if (!strip) return;
   strip.innerHTML = '';
   const shortDays = ['S','M','T','W','T','F','S'];
-  const start = new Date(state.today); start.setDate(start.getDate() - 3);
-  for (let i = 0; i < 14; i++) {
+  const start = new Date(state.today); start.setDate(start.getDate() - 1);
+  for (let i = 0; i < 21; i++) {
     const d = new Date(start); d.setDate(d.getDate() + i);
     const isToday = isSameDay(d, state.today);
     const isSelected = isSameDay(d, state.current);
@@ -2046,8 +2049,8 @@ function setView_(v) {
 }
 
 function renderAgendaView() {
-  const start = new Date(state.current);
-  const end = new Date(start); end.setDate(end.getDate() + 30);
+  const start = window.innerWidth <= 768 ? new Date(state.today) : new Date(state.current);
+  const end = new Date(start); end.setDate(end.getDate() + 60);
   const upcoming = state.events.filter(e => e.start >= start && e.start <= end).sort((a,b) => a.start - b.start);
 
   if (upcoming.length === 0) {
@@ -2742,7 +2745,11 @@ const isMobile = () => window.innerWidth <= 768;
 
 function mobileInit() {
   if (!isMobile()) return;
-  state.view = 'day';
+  state.view = 'agenda';
+  // Set active nav item
+  document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
+  const agendaBtn = document.getElementById('mobileNavAgenda');
+  if (agendaBtn) agendaBtn.classList.add('active');
   renderCalendar();
 }
 
