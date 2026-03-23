@@ -2149,12 +2149,14 @@ function renderAgendaView() {
     const cls = getEventClass(ev);
     const colors = getClassColors(cls);
     const srcLabel = colors.label;
+    const evMins = ev.allDay ? 0 : Math.round((ev.end - ev.start) / 60000);
+    const durStr = ev.allDay ? '' : (evMins < 60 ? evMins + 'm' : (evMins % 60 === 0 ? (evMins/60) + 'h' : Math.floor(evMins/60) + 'h ' + (evMins%60) + 'm'));
     html += `<div class="agenda-event" onclick="showEventDetail(getEventById('${ev.id}'))">
       <div class="agenda-event-time">${ev.allDay ? 'All day' : formatTime(ev.start)}</div>
       <div class="agenda-event-dot ${cls}"></div>
       <div class="agenda-event-content">
         <div class="agenda-event-title">${ev.title}</div>
-        ${ev.location ? `<div class="agenda-event-meta">📍 ${ev.location}</div>` : ''}
+        <div class="agenda-event-meta">${durStr ? durStr : ''}${durStr && ev.location ? ' &middot; ' : ''}${ev.location ? '&#128205; ' + ev.location : ''}</div>
       </div>
       <div class="agenda-event-source ${cls}">${srcLabel}</div>
     </div>`;
