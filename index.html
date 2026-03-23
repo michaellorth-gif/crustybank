@@ -26,6 +26,12 @@
     --deadline-light: #FDECEA;
     --task: #7B5EA7;
     --task-light: #F3EFF8;
+    --court: #B7791F;
+    --court-light: #FEFCE8;
+    --family: #0891B2;
+    --family-light: #E0F2FE;
+    --admin: #6B7280;
+    --admin-light: #F3F4F6;
     --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
     --shadow-lg: 0 4px 24px rgba(0,0,0,0.10);
     --radius: 12px;
@@ -920,6 +926,31 @@
   .agenda-event-source.personal { background: var(--personal-light); color: var(--personal); }
   .agenda-event-source.apple { background: var(--apple-light); color: var(--apple); }
   .agenda-event-source.deadline { background: var(--deadline-light); color: var(--deadline); }
+  .event-block.court { background: var(--court-light); color: var(--court); border-left-color: var(--court); }
+  .event-block.family { background: var(--family-light); color: var(--family); border-left-color: var(--family); }
+  .event-block.admin { background: var(--admin-light); color: var(--admin); border-left-color: var(--admin); }
+  .agenda-event-dot.court { background: var(--court); }
+  .agenda-event-dot.family { background: var(--family); }
+  .agenda-event-dot.admin { background: var(--admin); }
+  .agenda-event-source.court { background: var(--court-light); color: var(--court); }
+  .agenda-event-source.family { background: var(--family-light); color: var(--family); }
+  .agenda-event-source.admin { background: var(--admin-light); color: var(--admin); }
+  .agenda-event.court-highlight { border-left: 3px solid var(--court); background: var(--court-light); }
+  .event-detail-modal { position:fixed; inset:0; z-index:500; pointer-events:none; opacity:0; transition:opacity 0.2s; }
+  .event-detail-modal.open { pointer-events:all; opacity:1; }
+  .event-detail-backdrop { position:absolute; inset:0; background:rgba(0,0,0,0.3); backdrop-filter:blur(2px); }
+  .event-detail-sheet { position:absolute; bottom:0; left:0; right:0; background:var(--surface); border-radius:20px 20px 0 0; padding:0 24px calc(32px + env(safe-area-inset-bottom)); transform:translateY(20px); transition:transform 0.25s cubic-bezier(0.32,0.72,0,1); max-height:90dvh; overflow-y:auto; }
+  .event-detail-modal.open .event-detail-sheet { transform:translateY(0); }
+  @media (min-width:769px) { .event-detail-sheet { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) !important; bottom:auto; border-radius:var(--radius); max-width:480px; width:90%; max-height:80vh; padding:24px; } }
+  .event-detail-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:12px auto 20px; }
+  .event-detail-header { display:flex; align-items:flex-start; gap:12px; margin-bottom:20px; }
+  .event-detail-color-bar { width:4px; border-radius:2px; flex-shrink:0; align-self:stretch; min-height:40px; }
+  .event-detail-title { font-family:'DM Serif Display',serif; font-size:20px; flex:1; line-height:1.3; }
+  .event-detail-meta { display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
+  .event-detail-meta-row { display:flex; align-items:center; gap:10px; font-size:14px; color:var(--text-muted); }
+  .event-detail-meta-icon { width:20px; text-align:center; flex-shrink:0; }
+  .event-detail-actions { display:flex; gap:8px; margin-top:20px; border-top:1px solid var(--border); padding-top:16px; }
+  .event-detail-badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
 
   /* TIME INDICATOR */
   .time-indicator {
@@ -1430,7 +1461,49 @@
     </div>
   </div>
 
-  <!-- MOBILE HEADER -->
+  <!-- EVENT DETAIL MODAL -->
+<div class="event-detail-modal" id="eventDetailModal">
+  <div class="event-detail-backdrop" onclick="closeEventDetail()"></div>
+  <div class="event-detail-sheet">
+    <div class="event-detail-handle" id="edHandle"></div>
+    <div class="event-detail-header">
+      <div class="event-detail-color-bar" id="edColorBar"></div>
+      <div class="event-detail-title" id="edTitle"></div>
+    </div>
+    <div class="event-detail-meta" id="edMeta"></div>
+    <div id="edNotes" style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:4px;display:none;"></div>
+    <div class="event-detail-actions" id="edActions"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="editEventModal">
+  <div class="modal">
+    <div class="modal-title">Edit Event</div>
+    <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="eeTitle" placeholder="Event title"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Date</label><input class="form-input" type="date" id="eeDate"></div>
+      <div class="form-group"><label class="form-label">Category</label>
+        <select class="form-select" id="eeCategory">
+          <option value="personal">Personal</option>
+          <option value="family">Family</option>
+          <option value="admin">Admin/Office</option>
+          <option value="deadline">Deadline</option>
+          <option value="court">Court/Legal</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Start Time</label><input class="form-input" type="time" id="eeStart"></div>
+      <div class="form-group"><label class="form-label">End Time</label><input class="form-input" type="time" id="eeEnd"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Location</label><input class="form-input" id="eeLocation" placeholder="Optional"></div>
+    <div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="eeNotes" rows="3" style="resize:none;"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('editEventModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditedEvent()">Save</button>
+    </div>
+  </div>
+</div>
+<!-- MOBILE HEADER -->
   <div class="mobile-header" id="mobileHeader">
     <div class="mobile-header-left">
       <div class="mobile-header-date" id="mobileHeaderDate"></div>
@@ -2073,8 +2146,9 @@ function renderAgendaView() {
       </div><div class="agenda-events">`;
     }
 
-    const cls = ev.source === 'outlook' ? 'work' : ev.source === 'apple' ? 'apple' : ev.type === 'deadline' ? 'deadline' : 'personal';
-    const srcLabel = ev.source === 'outlook' ? 'Work' : ev.source === 'apple' ? 'Apple' : ev.source === 'google' ? 'Google' : 'Personal';
+    const cls = getEventClass(ev);
+    const colors = getClassColors(cls);
+    const srcLabel = colors.label;
     html += `<div class="agenda-event" onclick="showEventDetail(getEventById('${ev.id}'))">
       <div class="agenda-event-time">${ev.allDay ? 'All day' : formatTime(ev.start)}</div>
       <div class="agenda-event-dot ${cls}"></div>
@@ -2092,11 +2166,100 @@ function renderAgendaView() {
 }
 
 // ─── EVENTS ───────────────────────────────────────────────
+function getEventClass(ev) {
+  if (!ev) return 'personal';
+  if (ev.category) return ev.category;
+  const title = (ev.title || '').toLowerCase();
+  const courtKw = ['hearing', 'deposition', 'depo', 'mediation', 'arbitration', 'trial', 'court'];
+  if (courtKw.some(k => title.includes(k))) return 'court';
+  if (ev.source === 'outlook') return 'work';
+  if (ev.source === 'apple') return 'apple';
+  if (ev.type === 'deadline') return 'deadline';
+  return 'personal';
+}
+
+function getClassColors(cls) {
+  const map = {
+    work: { bg:'var(--work-light)', color:'var(--work)', bar:'var(--work)', label:'Work' },
+    personal: { bg:'var(--personal-light)', color:'var(--personal)', bar:'var(--personal)', label:'Personal' },
+    apple: { bg:'var(--apple-light)', color:'var(--apple)', bar:'var(--apple)', label:'Apple Cal' },
+    deadline: { bg:'var(--deadline-light)', color:'var(--deadline)', bar:'var(--deadline)', label:'Deadline' },
+    court: { bg:'var(--court-light)', color:'var(--court)', bar:'var(--court)', label:'Court/Legal' },
+    family: { bg:'var(--family-light)', color:'var(--family)', bar:'var(--family)', label:'Family' },
+    admin: { bg:'var(--admin-light)', color:'var(--admin)', bar:'var(--admin)', label:'Admin/Office' },
+  };
+  return map[cls] || map.personal;
+}
+
 function getEventById(id) { return state.events.find(e => e.id === id); }
 
 function showEventDetail(ev) {
   if (!ev) return;
-  alert(`${ev.title}\n${ev.allDay ? 'All day' : formatTime(ev.start) + ' – ' + formatTime(ev.end)}\nSource: ${ev.source}`);
+  const modal = document.getElementById('eventDetailModal');
+  const cls = getEventClass(ev);
+  const colors = getClassColors(cls);
+  document.getElementById('edTitle').textContent = ev.title;
+  document.getElementById('edColorBar').style.background = colors.bar;
+  const months2 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const days2 = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const dateStr = days2[ev.start.getDay()] + ', ' + months2[ev.start.getMonth()] + ' ' + ev.start.getDate() + ', ' + ev.start.getFullYear();
+  const timeStr = ev.allDay ? 'All day' : formatTime(ev.start) + ' - ' + formatTime(ev.end);
+  const evMins = ev.allDay ? 0 : Math.round((ev.end - ev.start) / 60000);
+  const dur = ev.allDay ? '' : (evMins < 60 ? evMins + ' min' : (evMins % 60 === 0 ? (evMins/60) + ' hr' : (evMins/60).toFixed(1) + ' hr'));
+  const srcLabel = ev.source === 'outlook' ? 'Work Outlook' : ev.source === 'apple' ? 'Apple Calendar' : ev.source === 'google' ? 'Google Calendar' : 'My Calendar';
+  document.getElementById('edMeta').innerHTML =
+    '<div class="event-detail-meta-row"><span class="event-detail-meta-icon">&#128197;</span><span>' + dateStr + '</span></div>' +
+    '<div class="event-detail-meta-row"><span class="event-detail-meta-icon">&#9200;</span><span>' + timeStr + (dur ? ' &middot; ' + dur : '') + '</span></div>' +
+    (ev.location ? '<div class="event-detail-meta-row"><span class="event-detail-meta-icon">&#128205;</span><span>' + ev.location + '</span></div>' : '') +
+    '<div class="event-detail-meta-row"><span class="event-detail-meta-icon">&#127991;</span><span class="event-detail-badge" style="background:' + colors.bg + ';color:' + colors.color + '">' + colors.label + '</span></div>' +
+    '<div class="event-detail-meta-row"><span class="event-detail-meta-icon">&#128198;</span><span style="font-size:12px;">' + srcLabel + '</span></div>';
+  const notesEl = document.getElementById('edNotes');
+  if (ev.notes) { notesEl.textContent = ev.notes; notesEl.style.display = ''; } else { notesEl.style.display = 'none'; }
+  const canEdit = ev.source === 'local';
+  document.getElementById('edActions').innerHTML =
+    (canEdit ? '<button class="btn btn-secondary" style="flex:1" onclick="openEditEvent(\'' + ev.id + '\')">Edit</button>' : '') +
+    (canEdit ? '<button class="btn btn-secondary" style="color:var(--deadline)" onclick="deleteEventById(\'' + ev.id + '\')">Delete</button>' : '') +
+    '<button class="btn btn-primary" style="margin-left:auto;" onclick="closeEventDetail()">Done</button>';
+  document.getElementById('edHandle').style.display = window.innerWidth <= 768 ? '' : 'none';
+  modal.classList.add('open');
+}
+
+function closeEventDetail() { document.getElementById('eventDetailModal').classList.remove('open'); }
+
+function openEditEvent(id) {
+  const ev = getEventById(id);
+  if (!ev) return;
+  closeEventDetail();
+  state.editingEventId = id;
+  document.getElementById('eeTitle').value = ev.title || '';
+  document.getElementById('eeDate').value = toDateInput(ev.start);
+  document.getElementById('eeStart').value = String(ev.start.getHours()).padStart(2,'0') + ':' + String(ev.start.getMinutes()).padStart(2,'0');
+  document.getElementById('eeEnd').value = String(ev.end.getHours()).padStart(2,'0') + ':' + String(ev.end.getMinutes()).padStart(2,'0');
+  document.getElementById('eeLocation').value = ev.location || '';
+  document.getElementById('eeNotes').value = ev.notes || '';
+  document.getElementById('eeCategory').value = ev.category || getEventClass(ev);
+  document.getElementById('editEventModal').classList.add('open');
+}
+
+function saveEditedEvent() {
+  const ev = getEventById(state.editingEventId);
+  if (!ev) return;
+  const [y,m,d] = document.getElementById('eeDate').value.split('-').map(Number);
+  const [sh,sm] = document.getElementById('eeStart').value.split(':').map(Number);
+  const [eh,em] = document.getElementById('eeEnd').value.split(':').map(Number);
+  ev.title = document.getElementById('eeTitle').value.trim() || ev.title;
+  ev.start = new Date(y, m-1, d, sh, sm);
+  ev.end = new Date(y, m-1, d, eh, em);
+  ev.location = document.getElementById('eeLocation').value;
+  ev.notes = document.getElementById('eeNotes').value;
+  ev.category = document.getElementById('eeCategory').value;
+  saveLocal(); closeModal('editEventModal'); renderCalendar(); renderMiniCal();
+}
+
+function deleteEventById(id) {
+  if (!confirm('Delete this event?')) return;
+  state.events = state.events.filter(e => e.id !== id);
+  saveLocal(); closeEventDetail(); renderCalendar(); renderMiniCal();
 }
 
 function openNewEvent(date, hour) {
