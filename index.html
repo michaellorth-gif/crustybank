@@ -881,9 +881,18 @@
   .agenda-event-time {
     font-size: 12px;
     color: var(--text-muted);
-    min-width: 80px;
+    min-width: 90px;
     font-weight: 500;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    line-height: 1.3;
+  }
+  .agenda-event-time-end {
+    font-size: 11px;
+    color: var(--text-light);
+    font-weight: 400;
   }
 
   .agenda-event-dot {
@@ -2152,7 +2161,7 @@ function renderAgendaView() {
     const evMins = ev.allDay ? 0 : Math.round((ev.end - ev.start) / 60000);
     const durStr = ev.allDay ? '' : (evMins < 60 ? evMins + 'm' : (evMins % 60 === 0 ? (evMins/60) + 'h' : Math.floor(evMins/60) + 'h ' + (evMins%60) + 'm'));
     html += `<div class="agenda-event" onclick="showEventDetail(getEventById('${ev.id}'))">
-      <div class="agenda-event-time">${ev.allDay ? 'All day' : formatTime(ev.start)}</div>
+      <div class="agenda-event-time">${ev.allDay ? 'All day' : `<span>${formatTime(ev.start)}</span><span class="agenda-event-time-end">${formatTime(ev.end)}</span>`}</div>
       <div class="agenda-event-dot ${cls}"></div>
       <div class="agenda-event-content">
         <div class="agenda-event-title">${ev.title}</div>
