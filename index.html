@@ -1694,7 +1694,7 @@
 <script>
 // ─── STATE ───────────────────────────────────────────────
 const GOOGLE_CLIENT_ID = '711890035321-7nd2ij4lvgc15m7046372e3srtcccptl.apps.googleusercontent.com';
-const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar';
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
 
 let state = {
   view: 'week',
@@ -1705,6 +1705,7 @@ let state = {
   tasks: [],
   notes: '',
   googleToken: null,
+  sheetsId: localStorage.getItem('morthSheetsId') || null,
   outlookIcs: localStorage.getItem('outlookIcs') || '',
   appleIcs: localStorage.getItem('appleIcs') || 'webcal://p126-caldav.icloud.com/published/2/MTk5NTg3NjQwMjE5OTU4N_zVbokGv8LoDROGUWBYFltR6R6iThZbH7V4lrDFvqy-',
   syncing: false,
@@ -1862,10 +1863,21 @@ function renderCalendar() {
   } else if (state.view === 'notes') {
     document.getElementById('calTitle').textContent = 'Notes & Tasks';
     container.innerHTML = renderNotesView();
-    // Restore saved content
     const ta = document.getElementById('notesViewArea');
-    if (ta) { ta.value = state.notes; ta.oninput = () => { state.notes = ta.value; saveLocal(); }; }
+    if (ta) {
+      ta.value = state.notes;
+      let notesTimer = null;
+      ta.oninput = () => {
+        state.notes = ta.value;
+        saveLocal();
+        // Auto-save to sheets after 2s pause
+        clearTimeout(notesTimer);
+        notesTimer = setTimeout(() => saveNotesToSheets(true), 2000);
+      };
+    }
     renderNotesTasksList();
+    // Auto-load from sheets if connected
+    if (state.sheetsId && state.googleToken) loadFromSheets();
   }
   // Update mobile UI
   if (window.innerWidth <= 768) {
@@ -2636,7 +2648,18 @@ function updateSourceStatus(source, status) {
 
 // ─── NOTES VIEW ──────────────────────────────────────────
 function renderNotesView() {
+  const syncStatus = state.sheetsId
+    ? (state.googleToken ? '<span style="color:#27ae60;font-size:11px;">&#10003; Synced to Google Sheets</span>' : '<span style="color:var(--text-light);font-size:11px;">Connect Google to sync</span>')
+    : (state.googleToken ? '<span style="color:var(--accent);font-size:11px;cursor:pointer;" onclick="createNotesSheet()">&#43; Set up cloud sync</span>' : '<span style="color:var(--text-light);font-size:11px;">Connect Google to sync</span>');
+
   return `<div style="flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:20px;padding-bottom:40px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div id="notesSyncStatus">${syncStatus}</div>
+      <div style="display:flex;gap:8px;">
+        ${state.sheetsId ? '<button class="btn btn-secondary" onclick="loadFromSheets()" style="font-size:12px;padding:5px 10px;">&#8635; Load</button>' : ''}
+        <button class="btn btn-primary" onclick="saveNotesToSheets()" style="font-size:12px;padding:5px 10px;">Save</button>
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex:1;">
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div style="font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-light);">Scratch Notes</div>
@@ -2877,6 +2900,111 @@ window.testNotification = () => {
   }
   sendDailyNotification(new Date());
 };
+
+
+// ─── GOOGLE SHEETS SYNC ───────────────────────────────────
+async function createNotesSheet() {
+  if (!state.googleToken) { showToast('Connect Google first'); return; }
+  showToast('Creating sheet...');
+  try {
+    // Create spreadsheet
+    const res = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + state.googleToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        properties: { title: 'Morth Calendar - Notes & Tasks' },
+        sheets: [
+          { properties: { title: 'Notes', sheetId: 0 } },
+          { properties: { title: 'Tasks', sheetId: 1 } }
+        ]
+      })
+    });
+    if (!res.ok) throw new Error('Failed to create sheet');
+    const data = await res.json();
+    state.sheetsId = data.spreadsheetId;
+    localStorage.setItem('morthSheetsId', state.sheetsId);
+    showToast('Sheet created! Saving notes...');
+    await saveNotesToSheets();
+    // Re-render notes view to show sync status
+    if (state.view === 'notes') {
+      const container = document.getElementById('calContent');
+      container.innerHTML = renderNotesView();
+      const ta = document.getElementById('notesViewArea');
+      if (ta) {
+        ta.value = state.notes;
+        let t = null;
+        ta.oninput = () => { state.notes = ta.value; saveLocal(); clearTimeout(t); t = setTimeout(() => saveNotesToSheets(true), 2000); };
+      }
+      renderNotesTasksList();
+    }
+  } catch(e) {
+    console.error('Sheet creation failed:', e);
+    showToast('Failed to create sheet');
+  }
+}
+
+async function saveNotesToSheets(silent = false) {
+  if (!state.sheetsId || !state.googleToken) {
+    if (!silent) showToast('Set up cloud sync first');
+    return;
+  }
+  try {
+    // Save notes text
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${state.sheetsId}/values/Notes!A1?valueInputOption=RAW`, {
+      method: 'PUT',
+      headers: { Authorization: 'Bearer ' + state.googleToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [[state.notes]] })
+    });
+    // Save tasks as rows: id, text, done
+    const taskRows = state.tasks.map(t => [t.id, t.text, t.done ? 'true' : 'false']);
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${state.sheetsId}/values/Tasks!A1:C${Math.max(taskRows.length, 1)}?valueInputOption=RAW`, {
+      method: 'PUT',
+      headers: { Authorization: 'Bearer ' + state.googleToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: taskRows.length ? taskRows : [['']] })
+    });
+    if (!silent) showToast('Saved to Google Sheets ✓');
+    // Update sync status label
+    const statusEl = document.getElementById('notesSyncStatus');
+    if (statusEl) statusEl.innerHTML = '<span style="color:#27ae60;font-size:11px;">&#10003; Saved ' + formatTime(new Date()) + '</span>';
+  } catch(e) {
+    console.error('Sheets save failed:', e);
+    if (!silent) showToast('Save failed — check Google connection');
+  }
+}
+
+async function loadFromSheets() {
+  if (!state.sheetsId || !state.googleToken) return;
+  try {
+    // Load notes
+    const notesRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${state.sheetsId}/values/Notes!A1`, {
+      headers: { Authorization: 'Bearer ' + state.googleToken }
+    });
+    const notesData = await notesRes.json();
+    if (notesData.values && notesData.values[0] && notesData.values[0][0] !== undefined) {
+      state.notes = notesData.values[0][0];
+      saveLocal();
+      const ta = document.getElementById('notesViewArea') || document.getElementById('notesArea') || document.getElementById('mobileNotesArea');
+      if (ta) ta.value = state.notes;
+    }
+    // Load tasks
+    const tasksRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${state.sheetsId}/values/Tasks!A:C`, {
+      headers: { Authorization: 'Bearer ' + state.googleToken }
+    });
+    const tasksData = await tasksRes.json();
+    if (tasksData.values && tasksData.values.length && tasksData.values[0][0]) {
+      state.tasks = tasksData.values
+        .filter(r => r[0] && r[1])
+        .map(r => ({ id: parseInt(r[0]) || Date.now(), text: r[1], done: r[2] === 'true' }));
+      saveLocal();
+      renderTasks();
+      renderNotesTasksList();
+    }
+    const statusEl = document.getElementById('notesSyncStatus');
+    if (statusEl) statusEl.innerHTML = '<span style="color:#27ae60;font-size:11px;">&#10003; Loaded ' + formatTime(new Date()) + '</span>';
+  } catch(e) {
+    console.error('Sheets load failed:', e);
+  }
+}
 
 // ─── HELPERS ──────────────────────────────────────────────
 function isSameDay(a, b) {
