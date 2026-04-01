@@ -1555,14 +1555,17 @@
     <div class="mobile-tasks-backdrop" onclick="closeMobileTasks()"></div>
     <div class="mobile-tasks-sheet">
       <div class="mobile-tasks-handle"></div>
-      <div class="mobile-tasks-title">Tasks &amp; Notes</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div class="mobile-tasks-title" style="margin-bottom:0;">Tasks &amp; Notes</div>
+        <div id="mobileSyncStatus" style="display:flex;align-items:center;gap:8px;"></div>
+      </div>
       <div class="task-input-row">
         <input class="task-input" id="mobileTaskInput" placeholder="Add a task..." onkeydown="if(event.key==='Enter') addMobileTask()">
         <button class="task-add-btn" onclick="addMobileTask()">+</button>
       </div>
       <div class="tasks-list" id="mobileTasksList"></div>
       <div class="notes-area" style="margin-top:16px;">
-        <textarea class="notes-textarea" id="mobileNotesArea" placeholder="Scratch notes..." oninput="saveMobileNotes()" style="min-height:120px;"></textarea>
+        <textarea class="notes-textarea" id="mobileNotesArea" placeholder="Scratch notes..." style="min-height:120px;"></textarea>
       </div>
     </div>
   </div>
@@ -3067,16 +3070,28 @@ function mobileSwitchView(v, btn) {
 async function openMobileTasks() {
   const drawer = document.getElementById('mobileTasksDrawer');
   if (drawer) drawer.classList.add('open');
-  // Load from Sheets first if connected, then render
+
+  // Render sync status button
+  const syncEl = document.getElementById('mobileSyncStatus');
+  if (syncEl) {
+    if (!state.googleToken) {
+      syncEl.innerHTML = '<button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="mobileGoToSources()">Connect Google</button>';
+    } else if (!state.sheetsId) {
+      syncEl.innerHTML = '<button class="btn btn-primary" style="font-size:11px;padding:4px 10px;" onclick="createNotesSheet()">Set up sync</button>';
+    } else {
+      syncEl.innerHTML = '<button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="saveNotesToSheets()">Save</button>';
+    }
+  }
+
+  // Load from Sheets first if connected
   if (state.sheetsId && state.googleToken) {
-    showToast('Loading...');
     await loadFromSheets();
   }
+
   renderMobileTasksList();
   const notesEl = document.getElementById('mobileNotesArea');
-  if (notesEl) notesEl.value = state.notes;
-  // Wire up auto-save
   if (notesEl) {
+    notesEl.value = state.notes;
     let mobileNotesTimer = null;
     notesEl.oninput = () => {
       state.notes = notesEl.value;
@@ -3090,6 +3105,11 @@ async function openMobileTasks() {
 function closeMobileTasks() {
   const drawer = document.getElementById('mobileTasksDrawer');
   if (drawer) drawer.classList.remove('open');
+}
+
+function mobileGoToSources() {
+  closeMobileTasks();
+  showView('connect');
 }
 
 function addMobileTask() {
