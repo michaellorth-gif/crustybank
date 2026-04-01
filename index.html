@@ -3064,13 +3064,27 @@ function mobileSwitchView(v, btn) {
   renderCalendar();
 }
 
-function openMobileTasks() {
+async function openMobileTasks() {
   const drawer = document.getElementById('mobileTasksDrawer');
   if (drawer) drawer.classList.add('open');
-  // Sync tasks and notes to mobile drawer
+  // Load from Sheets first if connected, then render
+  if (state.sheetsId && state.googleToken) {
+    showToast('Loading...');
+    await loadFromSheets();
+  }
   renderMobileTasksList();
   const notesEl = document.getElementById('mobileNotesArea');
   if (notesEl) notesEl.value = state.notes;
+  // Wire up auto-save
+  if (notesEl) {
+    let mobileNotesTimer = null;
+    notesEl.oninput = () => {
+      state.notes = notesEl.value;
+      saveLocal();
+      clearTimeout(mobileNotesTimer);
+      mobileNotesTimer = setTimeout(() => saveNotesToSheets(true), 2000);
+    };
+  }
 }
 
 function closeMobileTasks() {
@@ -3087,6 +3101,7 @@ function addMobileTask() {
   saveLocal();
   renderMobileTasksList();
   renderTasks();
+  saveNotesToSheets(true);
 }
 
 function renderMobileTasksList() {
@@ -3107,12 +3122,13 @@ function renderMobileTasksList() {
 
 function toggleMobileTask(id) {
   const t = state.tasks.find(t => t.id === id);
-  if (t) { t.done = !t.done; saveLocal(); renderMobileTasksList(); renderTasks(); }
+  if (t) { t.done = !t.done; saveLocal(); renderMobileTasksList(); renderTasks(); saveNotesToSheets(true); }
 }
 
 function saveMobileNotes() {
   state.notes = document.getElementById('mobileNotesArea').value;
   saveLocal();
+  saveNotesToSheets(true);
 }
 
 // Swipe navigation on mobile
