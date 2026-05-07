@@ -1213,7 +1213,8 @@
       display: flex !important;
       position: fixed;
       bottom: calc(76px + env(safe-area-inset-bottom));
-      right: 16px;
+      left: 50%;
+      transform: translateX(-50%);
       width: 50px; height: 50px;
       border-radius: 50%;
       background: var(--accent);
@@ -1222,9 +1223,9 @@
       align-items: center; justify-content: center;
       box-shadow: 0 4px 16px rgba(45,91,227,0.4);
       z-index: 50;
-      transition: transform 0.15s;
+      transition: filter 0.15s;
     }
-    .mobile-fab:active { transform: scale(0.92); }
+    .mobile-fab:active { filter: brightness(0.9); }
 
     .mobile-bottom-nav {
       display: flex !important;
@@ -3071,10 +3072,11 @@ const isMobile = () => window.innerWidth <= 768;
 function mobileInit() {
   if (!isMobile()) return;
   state.view = 'agenda';
-  // Set active nav item
   document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
   const agendaBtn = document.getElementById('mobileNavAgenda');
   if (agendaBtn) agendaBtn.classList.add('active');
+  const strip = document.getElementById('mobileWeekStrip');
+  if (strip) strip.style.display = 'none';
   renderCalendar();
 }
 
@@ -3084,6 +3086,11 @@ function mobileSwitchView(v, btn) {
   state.view = v;
   document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  // Explicitly control week strip visibility based on view
+  const strip = document.getElementById('mobileWeekStrip');
+  if (strip) {
+    strip.style.display = (v === 'day' || v === 'week') ? 'flex' : 'none';
+  }
   renderCalendar();
 }
 
