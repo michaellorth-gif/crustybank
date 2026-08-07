@@ -190,6 +190,23 @@ db.exec(`
     created_at TEXT NOT NULL
   );
 
+  -- Legal intake forms (automated practice-area workflows)
+  CREATE TABLE IF NOT EXISTS legal_intakes (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    matter_type TEXT NOT NULL,
+    client_name TEXT NOT NULL,
+    client_email TEXT,
+    client_phone TEXT,
+    status TEXT NOT NULL DEFAULT 'new',
+    data TEXT NOT NULL,
+    triage TEXT,
+    review_notes TEXT,
+    related_task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
   -- Indexes
   CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
   CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
@@ -205,6 +222,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_emails_user_id ON emails(user_id);
   CREATE INDEX IF NOT EXISTS idx_shared_items_shared_by_id ON shared_items(shared_by_id);
   CREATE INDEX IF NOT EXISTS idx_shared_items_shared_with_id ON shared_items(shared_with_id);
+  CREATE INDEX IF NOT EXISTS idx_legal_intakes_user_id ON legal_intakes(user_id);
 `)
 
 console.log('Database setup complete!')

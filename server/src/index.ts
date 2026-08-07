@@ -12,6 +12,7 @@ import dashboardRoutes from './routes/dashboard.js'
 import teamRoutes from './routes/teams.js'
 import documentRoutes from './routes/documents.js'
 import workflowRoutes from './routes/workflows.js'
+import intakeRoutes from './routes/intakes.js'
 import emailRoutes from './routes/emails.js'
 import adminRoutes from './routes/admin.js'
 import { authMiddleware } from './middleware/auth.js'
@@ -37,6 +38,7 @@ app.use('/api/dashboard', authMiddleware, dashboardRoutes)
 app.use('/api/teams', authMiddleware, teamRoutes)
 app.use('/api/documents', authMiddleware, documentRoutes)
 app.use('/api/workflows', authMiddleware, workflowRoutes)
+app.use('/api/intakes', authMiddleware, intakeRoutes)
 app.use('/api/emails', authMiddleware, emailRoutes)
 app.use('/api/admin', authMiddleware, adminRoutes)
 
