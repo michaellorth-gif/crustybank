@@ -3,7 +3,8 @@
 // placeholders; every document is stamped for attorney review. The generators mirror
 // the templates in .claude/skills/*/templates/.
 
-import type { DebtIntakeData, ExpunctionIntakeData, ExpunctionArrest, DivorceIntakeData, EstateIntakeData } from './legalTriage.js'
+import type { DebtIntakeData, ExpunctionIntakeData, ExpunctionArrest, DivorceIntakeData, EstateIntakeData, MvaIntakeData } from './legalTriage.js'
+import { mvaSolDate } from './legalTriage.js'
 import { classifyPlaintiff } from './legalTriage.js'
 
 const YEAR_MS = 365.25 * 24 * 3600 * 1000
@@ -723,6 +724,166 @@ ${SIG_LINE}  \n${clientName}
 }
 
 // ---------------------------------------------------------------------------
+// Reduced-fee MVA
+
+export function mvaLor(data: MvaIntakeData, clientName: string, firm: Firm): GeneratedDoc {
+  return {
+    title: `Letter of Representation — ${clientName} (DOL ${data.accidentDate})`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Send to the liability carrier; adapt the bracketed variant for the client's own carrier (UM/UIM and PIP/MedPay claims). Confirm the correct claims address before mailing.*
+
+[DATE]
+
+VIA CERTIFIED MAIL RRR AND EMAIL
+
+${ph(data.liabilityCarrier, 'LIABILITY CARRIER')}  \nClaims Department  \n[CLAIMS ADDRESS]
+
+**Re:** Our client: ${clientName}  \nYour insured: ${ph(data.otherDriverName, 'INSURED / OTHER DRIVER')}  \nClaim No.: ${ph(data.claimNumber, 'CLAIM NUMBER — or "to be assigned"')}  \nDate of loss: ${data.accidentDate}  \nLocation: ${ph(data.accidentCounty, 'COUNTY')} County, Texas
+
+To the Claims Department:
+
+This firm represents ${clientName} for all claims arising out of the motor vehicle collision described above. Effective immediately:
+
+1. **All communications** concerning this claim must be directed to this office. Do not contact our client directly for any purpose.
+2. **No recorded or written statement** of our client is authorized. Any statement previously obtained may not be used, and we request a complete copy of any statement, recording, or transcript in your file.
+3. Please confirm in writing, within fourteen (14) days: (a) your acknowledgment of this representation; (b) the claim number and assigned adjuster; and (c) all liability coverage available to your insured for this loss, including each applicable policy and its limits.
+4. Please preserve the entire claim file, all photographs, statements, and investigation materials relating to this loss.
+
+Our client is currently receiving medical treatment. A settlement demand with supporting records will follow at the appropriate time. This letter is not a demand and nothing in it waives any right or claim, all of which are expressly reserved.
+
+Sincerely,
+
+${ph(firm.attorneyName, 'ATTORNEY NAME')}  \n${ph(firm.firmName, 'FIRM NAME')}  \n${ph(firm.phone, 'PHONE')} · ${ph(firm.email, 'EMAIL')}
+
+---
+
+*[VARIANT — client's own carrier (${ph(data.clientAutoCarrier, 'CLIENT AUTO CARRIER')}): add — "This letter also constitutes notice of claim under all applicable first-party coverages, including Personal Injury Protection, Medical Payments, and Uninsured/Underinsured Motorist coverage. Please send certified copies of the declarations page and policy within 14 days, and PIP application forms."]*
+`,
+  }
+}
+
+export function mvaPreservation(data: MvaIntakeData, clientName: string, firm: Firm): GeneratedDoc {
+  return {
+    title: `Preservation of Evidence Letter — ${clientName} (DOL ${data.accidentDate})`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Send to the adverse driver AND the liability carrier. On any commercial-vehicle case this letter is NOT sufficient — that case belongs on the standard track with a full litigation-hold letter.*
+
+[DATE]
+
+VIA CERTIFIED MAIL RRR
+
+${ph(data.otherDriverName, 'ADVERSE DRIVER')}  \n[ADDRESS]
+
+and
+
+${ph(data.liabilityCarrier, 'LIABILITY CARRIER')} — Claims Department  \n[CLAIMS ADDRESS]
+
+**Re: PRESERVATION OF EVIDENCE — Collision of ${data.accidentDate}, ${ph(data.accidentCounty, 'COUNTY')} County, Texas — Claimant: ${clientName}**
+
+This firm represents ${clientName} for injuries arising from the above collision. You are hereby placed on notice that litigation is reasonably anticipated, and you have a legal duty to preserve evidence relevant to this incident. Specifically, do not repair, alter, sell, salvage, or destroy, and take affirmative steps to preserve:
+
+1. The vehicle operated by ${ph(data.otherDriverName, 'ADVERSE DRIVER')} in the collision, in its post-collision condition, until our expert has had a reasonable opportunity to inspect it;
+2. All data from the vehicle's **event data recorder ("black box")**, infotainment, and telematics systems — do not operate the vehicle in a manner that overwrites this data and do not disconnect power without first imaging the data;
+3. All photographs and video of the vehicles, scene, or occupants, including any **dashcam** footage;
+4. All cell phone records, call logs, and application-usage data of the driver for the two hours before and after the collision [ADAPT — include only if distraction is suspected];
+5. All electronic communications, incident reports, and witness statements concerning the collision.
+
+Failure to preserve this evidence after notice may give rise to a spoliation instruction or other sanctions. Please confirm your compliance in writing within ten (10) days.
+
+Sincerely,
+
+${ph(firm.attorneyName, 'ATTORNEY NAME')}  \n${ph(firm.firmName, 'FIRM NAME')}
+`,
+  }
+}
+
+export function mvaRecordsRequest(data: MvaIntakeData, clientName: string, firm: Firm): GeneratedDoc {
+  return {
+    title: `Medical Records & Billing Request — ${clientName}`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Generate one per provider. Attach the signed HIPAA authorization. Providers listed at intake: ${ph(data.providers, 'see intake')}.*
+
+[DATE]
+
+[PROVIDER NAME]  \nAttn: Medical Records / Release of Information  \n[ADDRESS]
+
+**Re:** Patient: ${clientName} — DOB: [DOB] — Dates of service: ${data.accidentDate} to present
+
+To the Custodian of Records:
+
+This firm represents the above patient in connection with injuries sustained on ${data.accidentDate}. Enclosed is a HIPAA-compliant authorization signed by the patient. Please provide:
+
+1. **Complete medical records** for the dates of service above, including office notes, imaging reports, operative and procedure notes, therapy notes, prescriptions, and referrals;
+2. An **itemized billing statement** (not a summary or ledger) for all charges, showing CPT codes, amounts billed, adjustments, payments, and payor sources;
+3. Copies of **radiology images** on disc or via electronic transfer [IF IMAGING PROVIDER];
+4. If your records are maintained by a third-party release-of-information vendor, please forward this request to them and confirm to us.
+
+Please direct any invoice for reasonable copying costs to this office. If any portion of this request will be refused or delayed, contact us within ten (10) days.
+
+Sincerely,
+
+${ph(firm.attorneyName, 'ATTORNEY NAME')}  \n${ph(firm.firmName, 'FIRM NAME')}  \n${ph(firm.phone, 'PHONE')} · ${ph(firm.email, 'EMAIL')}
+
+---
+
+## HIPAA AUTHORIZATION FOR RELEASE OF HEALTH INFORMATION
+
+I, ${clientName}, DOB [DOB], SSN [LAST 4 ONLY], authorize [PROVIDER NAME] to release my complete medical and billing records for dates of service ${data.accidentDate} to present to ${ph(firm.firmName, 'FIRM NAME')}, ${ph(firm.address, 'FIRM ADDRESS')}.
+
+- Purpose: legal representation. This authorization excludes psychotherapy notes.
+- [STRIKE IF NOT APPLICABLE: This authorization includes records relating to mental health (other than psychotherapy notes), HIV/AIDS, and drug/alcohol treatment.]
+- This authorization expires one year from the date signed or upon written revocation, whichever is earlier. I may revoke it in writing at any time, except to the extent action has been taken in reliance on it. Treatment and payment may not be conditioned on signing.
+- A photocopy or scan of this authorization is as valid as the original.
+
+Signature: ${'\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_'}  Date: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_
+`,
+  }
+}
+
+export function mvaEngagementLetter(data: MvaIntakeData, clientName: string, firm: Firm): GeneratedDoc {
+  const sol = mvaSolDate(data.accidentDate)
+  return {
+    title: `Contingency Fee Agreement (Reduced-Fee MVA) — ${clientName}`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Contingency fee agreements MUST be in writing and signed (Tex. Disciplinary R. Prof. Conduct 1.04(d)). Mike sets the exact percentages before this goes out; the defaults below are the product's standard terms.*
+
+# POWER OF ATTORNEY AND CONTINGENCY FEE AGREEMENT
+### Reduced-Fee Motor Vehicle Accident Track
+
+Client: **${clientName}**  \nMatter: personal-injury claims arising from the motor vehicle collision of **${data.accidentDate}** in ${ph(data.accidentCounty, 'COUNTY')} County, Texas.
+
+**1. Engagement.** Client retains ${ph(firm.firmName, 'FIRM NAME')} ("the Firm") to pursue Client's personal-injury claims arising from the collision described above, including claims against the at-fault driver and all applicable insurance coverages (liability, UM/UIM, PIP/MedPay).
+
+**2. Contingent fee — reduced-fee track.** Client qualifies for the Firm's reduced-fee track for clear-liability claims resolved without filing suit. The Firm's fee is contingent on recovery and is calculated on the gross amount recovered:
+- **[25]% of the gross recovery** if the claim resolves **before suit is filed**;
+- **[33⅓]% of the gross recovery** if resolution requires **filing suit**; and
+- **[40]% of the gross recovery** if resolution occurs **after an appeal is perfected**.
+If there is no recovery, Client owes no attorney's fee.
+
+**3. Expenses.** The Firm advances reasonable case expenses (records fees, postage, filing fees if suit is filed). Expenses are itemized and reimbursed from the recovery in addition to the fee. If there is no recovery, Client [is not / is] responsible for expenses advanced. [MIKE SELECTS]
+
+**4. Medical bills and liens.** Amounts owed to health care providers, health plans, hospital lien holders (Tex. Prop. Code ch. 55), Medicare/Medicaid, or other subrogated interests are Client's obligations, paid from Client's share of the recovery. The Firm will seek reductions of these amounts as part of the representation.
+
+**5. No settlement without Client's consent.** The Firm will not settle Client's claim without Client's authority, and Client will not settle directly with any insurer while this agreement is in effect. A signed closing statement itemizing the recovery, fee, expenses, and disbursements will be provided before funds are disbursed.
+
+**6. Limitations.** Suit on these claims generally must be filed by **${sol}** (two years from the collision, Tex. Civ. Prac. & Rem. Code § 16.003). If the claim has not resolved as that date approaches, the Firm will confer with Client about filing suit, and the fee converts as stated in Paragraph 2.
+
+**7. No guaranteed outcome.** The Firm makes no promise about the result or the amount of any recovery.
+
+**8. Power of attorney.** Client appoints the Firm to take all lawful steps to prosecute the claims, including [endorsing settlement drafts for deposit into the Firm's trust account — MIKE CONFIRMS SCOPE].
+
+**9. Termination.** Client may terminate at any time; the Firm may withdraw as permitted by the Texas Disciplinary Rules. On termination after substantial work, the Firm [reserves a fee interest per quantum meruit / as stated here: ___]. [MIKE DRAFTS]
+
+AGREED:
+
+${'\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_'}  \n${clientName}, Client — Date: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_
+
+${'\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_'}  \n${ph(firm.attorneyName, 'ATTORNEY NAME')}, ${ph(firm.firmName, 'FIRM NAME')} — Date: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_
+`,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Engagement letters (limited scope, per product)
 
 const productScopes: Record<string, { name: string; scope: string; excluded: string }> = {
@@ -817,6 +978,12 @@ export const DOC_TYPES: Record<string, Array<{ id: string; label: string }>> = {
     { id: 'directive', label: 'Directive to physicians' },
     { id: 'engagement-letter', label: 'Engagement letter' },
   ],
+  'reduced-fee-mva': [
+    { id: 'lor', label: 'Letter of representation' },
+    { id: 'preservation', label: 'Preservation of evidence letter' },
+    { id: 'records-request', label: 'Records request + HIPAA authorization' },
+    { id: 'engagement-letter', label: 'Contingency fee agreement' },
+  ],
 }
 
 export function generateDocument(
@@ -826,6 +993,15 @@ export function generateDocument(
   clientName: string,
   firm: Firm
 ): GeneratedDoc {
+  // The MVA engagement letter is a contingency agreement, not a limited-scope
+  // flat-fee letter — it has its own generator.
+  if (matterType === 'reduced-fee-mva') {
+    const d = data as unknown as MvaIntakeData
+    if (docType === 'lor') return mvaLor(d, clientName, firm)
+    if (docType === 'preservation') return mvaPreservation(d, clientName, firm)
+    if (docType === 'records-request') return mvaRecordsRequest(d, clientName, firm)
+    if (docType === 'engagement-letter') return mvaEngagementLetter(d, clientName, firm)
+  }
   if (docType === 'engagement-letter') return engagementLetter(matterType, clientName, firm)
 
   if (matterType === 'debt-defense') {

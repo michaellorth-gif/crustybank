@@ -52,6 +52,9 @@ export function extractParties(matterType: string, clientName: string, data: Rec
     if (str('respondentName')) parties.push({ name: str('respondentName'), role: 'adverse party' })
   } else if (matterType === 'estate-package') {
     if (str('spouseName')) parties.push({ name: str('spouseName'), role: 'related party' })
+  } else if (matterType === 'reduced-fee-mva') {
+    if (str('otherDriverName')) parties.push({ name: str('otherDriverName'), role: 'adverse party' })
+    if (str('liabilityCarrier')) parties.push({ name: str('liabilityCarrier'), role: 'related party' })
   }
   return parties.filter((p) => p.name.trim().length > 1)
 }

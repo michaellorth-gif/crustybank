@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Scale, Trash2, AlertTriangle, ChevronDown, ChevronUp, Gavel, FileX2, HeartCrack, ScrollText, Settings, Globe, UserSearch } from 'lucide-react'
+import { Plus, Scale, Trash2, AlertTriangle, ChevronDown, ChevronUp, Gavel, FileX2, HeartCrack, ScrollText, Car, Settings, Globe, UserSearch } from 'lucide-react'
 import { api } from '../services/api'
 import DebtDefenseForm from '../components/intake/DebtDefenseForm'
 import ExpunctionForm from '../components/intake/ExpunctionForm'
 import DivorceForm from '../components/intake/DivorceForm'
 import EstateForm from '../components/intake/EstateForm'
+import MvaForm from '../components/intake/MvaForm'
 import MatterPanel from '../components/intake/MatterPanel'
 import FirmSettingsModal from '../components/intake/FirmSettingsModal'
 import ConflictsSearchModal from '../components/intake/ConflictsSearchModal'
 import { IntakePayload } from '../components/intake/fields'
 
-type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package'
+type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package' | 'reduced-fee-mva'
 
 interface LegalIntake {
   id: string
@@ -35,6 +36,7 @@ const matterMeta: Record<MatterType, { label: string; icon: typeof Gavel; color:
   'expunction': { label: 'Expunction', icon: FileX2, color: 'bg-purple-100 text-purple-700' },
   'uncontested-divorce': { label: 'Uncontested Divorce', icon: HeartCrack, color: 'bg-rose-100 text-rose-700' },
   'estate-package': { label: 'Estate Package', icon: ScrollText, color: 'bg-amber-100 text-amber-700' },
+  'reduced-fee-mva': { label: 'Reduced-Fee MVA', icon: Car, color: 'bg-emerald-100 text-emerald-700' },
 }
 
 const statusColors: Record<string, string> = {
@@ -170,6 +172,9 @@ export default function LegalIntakes() {
             )}
             {newIntakeType === 'estate-package' && (
               <EstateForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => { setNewIntakeType(null); setSubmitError(null) }} isLoading={createIntake.isPending} />
+            )}
+            {newIntakeType === 'reduced-fee-mva' && (
+              <MvaForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => { setNewIntakeType(null); setSubmitError(null) }} isLoading={createIntake.isPending} />
             )}
           </div>
         </div>
@@ -368,6 +373,23 @@ function TriageSummary({ intake }: { intake: LegalIntake }) {
     )
   }
 
+  if (intake.matterType === 'reduced-fee-mva') {
+    const lim = t.limitations as { solDate: string; daysRemaining: number } | undefined
+    const track = String(t.track || '')
+    return (
+      <p className="text-sm mt-1">
+        <span className={track === 'reduced-fee' ? 'text-green-700 font-medium' : track === 'escalate' ? 'text-red-700 font-medium' : 'text-orange-700 font-medium'}>
+          {track === 'reduced-fee' ? 'Reduced-fee eligible' : track === 'escalate' ? 'ESCALATE' : 'Standard-fee track'}
+        </span>
+        {lim && (
+          <span className={lim.daysRemaining <= 120 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+            {' '}· SOL {lim.solDate} ({lim.daysRemaining} days)
+          </span>
+        )}
+      </p>
+    )
+  }
+
   if (intake.matterType === 'estate-package') {
     const eligible = t.packageEligible as boolean
     return (
@@ -400,6 +422,7 @@ function collectFlags(triage: Record<string, unknown>): string[] {
   }
   if (Array.isArray(triage.flags)) flags.push(...(triage.flags as string[]))
   if (Array.isArray(triage.escalations)) flags.push(...(triage.escalations as string[]))
+  if (Array.isArray(triage.standardTrackReasons)) flags.push(...(triage.standardTrackReasons as string[]))
   if (Array.isArray(triage.screens)) {
     for (const s of triage.screens as Array<{ label: string; flags?: string[] }>) {
       for (const f of s.flags || []) flags.push(`${s.label}: ${f}`)

@@ -12,6 +12,7 @@ follow-through**, with honest routing out of the product when a case doesn't fit
 | `expunction` | Record clearing under CCP ch. 55A (+ nondisclosure pivot) | District (mostly) | Arrest-by-arrest eligibility tree with verified 55A cites, petition + order generation, agency-list completeness |
 | `uncontested-divorce` | Tier 1 agreed divorce: no kids, no real property | District / CCL family | Hard intake gate, § 6.4035 waiver sequencing, 60-day clock, agreed decree with completeness check |
 | `estate-package` | Simple will + statutory durable POA + medical POA + directive, flat fee | n/a (transactional) | Gate (tax exposure, special needs, contest risk, capacity → route out/escalate), package docgen, signing-ceremony checklist, 3-year review reminder |
+| `reduced-fee-mva` | Reduced contingency (25% pre-suit, converts on filing) for clear-liability car wrecks | Pre-suit (converts if filed) | Hard gate (clear liability only; surgery/catastrophic/commercial/fatality → standard track), 2-year SOL clock (CPRC § 16.003) with 90-day decision-point task, LOR/preservation/records docgen, written contingency agreement (Rule 1.04(d)), demand via the pi-demand-letter skill, lien-resolution close-out |
 
 ## Shared operating rules
 

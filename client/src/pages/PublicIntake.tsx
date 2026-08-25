@@ -3,14 +3,15 @@
 
 import { useState } from 'react'
 import axios from 'axios'
-import { Scale, Gavel, FileX2, HeartCrack, ScrollText, CheckCircle, ShieldAlert } from 'lucide-react'
+import { Scale, Gavel, FileX2, HeartCrack, ScrollText, Car, CheckCircle, ShieldAlert } from 'lucide-react'
 import DebtDefenseForm from '../components/intake/DebtDefenseForm'
 import ExpunctionForm from '../components/intake/ExpunctionForm'
 import DivorceForm from '../components/intake/DivorceForm'
 import EstateForm from '../components/intake/EstateForm'
+import MvaForm from '../components/intake/MvaForm'
 import { IntakePayload } from '../components/intake/fields'
 
-type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package'
+type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package' | 'reduced-fee-mva'
 
 const products: Array<{ id: MatterType; icon: typeof Gavel; title: string; blurb: string }> = [
   {
@@ -36,6 +37,12 @@ const products: Array<{ id: MatterType; icon: typeof Gavel; title: string; blurb
     icon: ScrollText,
     title: 'Will & estate package',
     blurb: 'Simple will, powers of attorney, and medical directives — one flat fee, one signing appointment.',
+  },
+  {
+    id: 'reduced-fee-mva',
+    icon: Car,
+    title: 'Car accident',
+    blurb: "Hurt in a wreck that wasn't your fault? Clear-liability cases may qualify for our reduced contingency fee.",
   },
 ]
 
@@ -137,6 +144,9 @@ export default function PublicIntake() {
             )}
             {selected === 'estate-package' && (
               <EstateForm onSubmit={submit} onClose={() => setSelected(null)} isLoading={submitting} />
+            )}
+            {selected === 'reduced-fee-mva' && (
+              <MvaForm onSubmit={submit} onClose={() => setSelected(null)} isLoading={submitting} />
             )}
             <p className="text-xs text-gray-500 mt-4 pt-4 border-t border-gray-100">{DISCLAIMER}</p>
           </div>

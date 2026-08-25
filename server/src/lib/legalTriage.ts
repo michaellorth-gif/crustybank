@@ -395,6 +395,102 @@ export function triageEstate(data: EstateIntakeData): Record<string, unknown> {
   }
 }
 
+export interface MvaIntakeData {
+  accidentDate: string // ISO date — drives the SOL clock
+  accidentCounty?: string
+  liabilityScenario: 'rear-ended' | 'other-driver-cited' | 'other-driver-dwi' | 'left-turn-red-light' | 'disputed' | 'client-cited' | 'hit-and-run' | 'other'
+  clientCited: boolean
+  clientPartialFault: boolean
+  injurySeverity: 'soft-tissue' | 'fractures' | 'surgery' | 'catastrophic'
+  fatality: boolean
+  treatmentStatus: 'not-started' | 'treating' | 'complete'
+  providers?: string
+  otherDriverName?: string
+  liabilityCarrier?: string
+  claimNumber?: string
+  clientAutoCarrier?: string
+  umUimCoverage: 'yes' | 'no' | 'unknown'
+  pipMedPay: 'yes' | 'no' | 'unknown'
+  healthInsurance: 'none' | 'private' | 'medicare' | 'medicaid' | 'erisa' | 'unknown'
+  commercialVehicle: boolean
+  priorAttorney: boolean
+  recordedStatementGiven: boolean
+  clientIsMinor: boolean
+  [key: string]: unknown
+}
+
+const CLEAR_LIABILITY = new Set(['rear-ended', 'other-driver-cited', 'other-driver-dwi', 'left-turn-red-light'])
+
+export function mvaSolDate(accidentDateISO: string): string {
+  // Two years from the accident (Tex. Civ. Prac. & Rem. Code § 16.003) — the
+  // conservative anchor; death claims accrue at death and tolling can extend, but
+  // the calendar never assumes the friendlier date.
+  const d = parseISODate(accidentDateISO)
+  d.setUTCFullYear(d.getUTCFullYear() + 2)
+  return toISODate(d)
+}
+
+export function triageMva(data: MvaIntakeData, now = new Date()): Record<string, unknown> {
+  const standardTrack: string[] = []
+  const escalations: string[] = []
+  const flags: string[] = []
+  const today = parseISODate(texasTodayISO(now))
+
+  const solDate = mvaSolDate(data.accidentDate)
+  const solDays = Math.round((parseISODate(solDate).getTime() - today.getTime()) / DAY_MS)
+  if (solDays < 0) {
+    escalations.push('LIMITATIONS APPEARS EXPIRED (2 years, CPRC § 16.003) — attorney review IMMEDIATELY; decline carefully in writing if truly barred')
+  } else if (solDays <= 120) {
+    escalations.push(`LIMITATIONS in ${solDays} days (${solDate}) — inside the 120-day window; Mike must set the file-or-resolve plan before signing`)
+  }
+
+  if (!CLEAR_LIABILITY.has(data.liabilityScenario)) {
+    if (data.liabilityScenario === 'hit-and-run') {
+      if (data.umUimCoverage === 'yes') flags.push('Hit-and-run with confirmed UM — first-party claim can stay on the reduced track; verify physical-contact/corroboration requirements on the policy')
+      else standardTrack.push('Hit-and-run without confirmed UM coverage — no clear recovery path for the automated track; standard evaluation (or candid decline if no coverage)')
+    } else {
+      standardTrack.push(`Liability scenario "${data.liabilityScenario}" is not clear-liability — standard-fee track`)
+    }
+  }
+  if (data.clientCited) standardTrack.push('Client was cited — comparative-fault exposure (51% bar, CPRC § 33.001); standard-fee track')
+  if (data.clientPartialFault) standardTrack.push('Client reports possible shared fault — standard-fee track')
+  if (data.injurySeverity === 'surgery' || data.injurySeverity === 'catastrophic') {
+    standardTrack.push('Surgical/catastrophic injury profile — deserves full-fee workup, not the automated discount track')
+  }
+  if (data.fatality) {
+    standardTrack.push('Fatality — wrongful death/survival claims; standard track')
+    escalations.push('Fatality reported — immediate attorney involvement (beneficiaries, accrual at death, § 16.003(b))')
+  }
+  if (data.commercialVehicle) standardTrack.push('Commercial vehicle involved — preservation and layered-coverage complexity; standard track')
+
+  if (data.priorAttorney) escalations.push('Prior attorney on the case — resolve fee lien / termination letter before signing')
+  if (data.clientIsMinor) escalations.push('Minor claimant — tolling analysis and court approval of settlement; Mike prices and plans this personally')
+  if (data.recordedStatementGiven) flags.push('Recorded statement already given — obtain a copy from the carrier; assess damage')
+  if (['medicare', 'medicaid', 'erisa'].includes(data.healthInsurance)) {
+    flags.push(`${data.healthInsurance.toUpperCase()} coverage — reimbursement/lien resolution required before disbursement; calendar early`)
+  }
+  if (data.pipMedPay !== 'no') flags.push('PIP/MedPay possible — pull the dec page and submit first-party claims (never leave first-party benefits unclaimed)')
+  if (data.treatmentStatus === 'not-started') flags.push('No treatment yet — advise prompt evaluation; gaps and delays are the adjuster\'s favorite exhibit')
+
+  const reducedFeeEligible = standardTrack.length === 0 && escalations.length === 0
+
+  return {
+    matter: 'reduced-fee-mva',
+    reducedFeeEligible,
+    track: reducedFeeEligible ? 'reduced-fee' : escalations.length > 0 ? 'escalate' : 'standard-fee',
+    standardTrackReasons: standardTrack,
+    escalations,
+    flags,
+    limitations: { solDate, daysRemaining: solDays, basis: 'Two years from accident (Tex. Civ. Prac. & Rem. Code § 16.003); conservative anchor — tolling not assumed' },
+    recommendation: reducedFeeEligible
+      ? 'Reduced-fee track eligible — signed written contingency agreement (Rule 1.04(d)) + HIPAA authorizations, then LOR and preservation letters out'
+      : escalations.length > 0
+        ? 'ESCALATE to attorney before signing anything'
+        : 'Route to standard-fee PI practice with a one-line explanation — full workup, standard contingency',
+    disclaimer: 'Automated first-pass triage for attorney review — not a legal determination.',
+  }
+}
+
 export function triageDivorce(data: DivorceIntakeData): Record<string, unknown> {
   const failures: string[] = []
   const escalations: string[] = []

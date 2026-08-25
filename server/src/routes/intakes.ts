@@ -9,10 +9,12 @@ import {
   triageExpunction,
   triageDivorce,
   triageEstate,
+  triageMva,
   DebtIntakeData,
   ExpunctionIntakeData,
   DivorceIntakeData,
   EstateIntakeData,
+  MvaIntakeData,
 } from '../lib/legalTriage.js'
 import { texasTodayISO } from '../lib/legalTriage.js'
 import { generateDocument, DOC_TYPES, Firm } from '../lib/docgen.js'
@@ -109,6 +111,30 @@ const estateDataSchema = z.object({
   notes: z.string().optional(),
 }).passthrough()
 
+const mvaDataSchema = z.object({
+  accidentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  accidentCounty: z.string().optional(),
+  liabilityScenario: z.enum(['rear-ended', 'other-driver-cited', 'other-driver-dwi', 'left-turn-red-light', 'disputed', 'client-cited', 'hit-and-run', 'other']),
+  clientCited: z.boolean(),
+  clientPartialFault: z.boolean(),
+  injurySeverity: z.enum(['soft-tissue', 'fractures', 'surgery', 'catastrophic']),
+  fatality: z.boolean(),
+  treatmentStatus: z.enum(['not-started', 'treating', 'complete']),
+  providers: z.string().optional(),
+  otherDriverName: z.string().optional(),
+  liabilityCarrier: z.string().optional(),
+  claimNumber: z.string().optional(),
+  clientAutoCarrier: z.string().optional(),
+  umUimCoverage: z.enum(['yes', 'no', 'unknown']),
+  pipMedPay: z.enum(['yes', 'no', 'unknown']),
+  healthInsurance: z.enum(['none', 'private', 'medicare', 'medicaid', 'erisa', 'unknown']),
+  commercialVehicle: z.boolean(),
+  priorAttorney: z.boolean(),
+  recordedStatementGiven: z.boolean(),
+  clientIsMinor: z.boolean(),
+  notes: z.string().optional(),
+}).passthrough()
+
 const createIntakeSchema = z.discriminatedUnion('matterType', [
   z.object({
     matterType: z.literal('debt-defense'),
@@ -138,6 +164,13 @@ const createIntakeSchema = z.discriminatedUnion('matterType', [
     clientPhone: z.string().optional(),
     data: estateDataSchema,
   }),
+  z.object({
+    matterType: z.literal('reduced-fee-mva'),
+    clientName: z.string().min(1),
+    clientEmail: z.string().email().optional().or(z.literal('')),
+    clientPhone: z.string().optional(),
+    data: mvaDataSchema,
+  }),
 ])
 
 function runTriage(matterType: string, data: Record<string, unknown>): Record<string, unknown> {
@@ -150,9 +183,45 @@ function runTriage(matterType: string, data: Record<string, unknown>): Record<st
       return triageDivorce(data as unknown as DivorceIntakeData)
     case 'estate-package':
       return triageEstate(data as unknown as EstateIntakeData)
+    case 'reduced-fee-mva':
+      return triageMva(data as unknown as MvaIntakeData)
     default:
       return {}
   }
+}
+
+// The one deadline task tracked per intake (answer deadline / SOL decision point).
+// Shared by creation and by PATCH re-triage so the calendared task always matches
+// the current triage.
+function deadlineTaskValues(
+  matterType: string,
+  clientName: string,
+  data: Record<string, unknown>,
+  triage: Record<string, unknown>
+): { title: string; description: string; priority: string; dueDate: string } | null {
+  if (matterType === 'debt-defense') {
+    const deadline = (triage as { answerDeadline?: { deadline: string; internalDeadline: string; basis: string; caveat: string } }).answerDeadline
+    if (!deadline) return null
+    return {
+      title: `ANSWER DUE ${deadline.deadline} — ${clientName} (${data.plaintiffName})`,
+      description: `Debt-defense answer deadline. Internal deadline ${deadline.internalDeadline} (3 business days early). ${deadline.basis}. ${deadline.caveat}`,
+      priority: 'high',
+      dueDate: deadline.internalDeadline,
+    }
+  }
+  if (matterType === 'reduced-fee-mva') {
+    const limitations = (triage as { limitations?: { solDate: string; basis: string } }).limitations
+    if (!limitations) return null
+    const decisionPoint = new Date(new Date(`${limitations.solDate}T12:00:00Z`).getTime() - 90 * 86400000)
+      .toISOString().slice(0, 10)
+    return {
+      title: `MVA LIMITATIONS ${limitations.solDate} — file-or-resolve decision — ${clientName}`,
+      description: `Statute of limitations ${limitations.solDate}. ${limitations.basis}. This task is the 90-day decision point: resolve, file suit (reduced fee converts per engagement letter), or document the plan with the attorney.`,
+      priority: 'high',
+      dueDate: decisionPoint,
+    }
+  }
+  return null
 }
 
 // Shared creation path used by the authenticated route and the public portal.
@@ -165,18 +234,10 @@ export async function createIntakeRecord(
   triage.conflictHits = await scanConflicts(userId, body.matterType, body.clientName, body.data)
 
   let relatedTaskId: string | undefined
-  if (body.matterType === 'debt-defense') {
-    const deadline = (triage as { answerDeadline?: { deadline: string; internalDeadline: string; basis: string; caveat: string } }).answerDeadline
-    if (deadline) {
-      const [task] = await db.insert(tasks).values({
-        userId,
-        title: `ANSWER DUE ${deadline.deadline} — ${body.clientName} (${body.data.plaintiffName})`,
-        description: `Debt-defense answer deadline. Internal deadline ${deadline.internalDeadline} (3 business days early). ${deadline.basis}. ${deadline.caveat}`,
-        priority: 'high',
-        dueDate: deadline.internalDeadline,
-      }).returning()
-      relatedTaskId = task.id
-    }
+  const taskValues = deadlineTaskValues(body.matterType, body.clientName, body.data, triage)
+  if (taskValues) {
+    const [task] = await db.insert(tasks).values({ userId, ...taskValues }).returning()
+    relatedTaskId = task.id
   }
 
   const [intake] = await db.insert(legalIntakes).values({
@@ -235,6 +296,20 @@ router.get('/deadlines', async (req: AuthRequest, res: Response) => {
             label: 'Answer due',
             date: deadline,
             daysLeft: Math.round((new Date(`${deadline}T00:00:00Z`).getTime() - todayMs) / 86400000),
+          })
+        }
+      }
+
+      if (intake.matterType === 'reduced-fee-mva' && !['settled', 'closed'].includes(intake.stage)) {
+        const sol = (intake.triage as { limitations?: { solDate: string } } | null)?.limitations?.solDate
+        if (sol) {
+          deadlines.push({
+            intakeId: intake.id,
+            clientName: intake.clientName,
+            matterType: intake.matterType,
+            label: 'MVA limitations (file suit by)',
+            date: sol,
+            daysLeft: Math.round((new Date(`${sol}T00:00:00Z`).getTime() - todayMs) / 86400000),
           })
         }
       }
@@ -349,33 +424,26 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
       const schema = intake.matterType === 'debt-defense' ? debtDataSchema
         : intake.matterType === 'expunction' ? expunctionDataSchema
         : intake.matterType === 'estate-package' ? estateDataSchema
+        : intake.matterType === 'reduced-fee-mva' ? mvaDataSchema
         : divorceDataSchema
       data = schema.parse(merged) as Record<string, unknown>
       triage = runTriage(intake.matterType, data)
       triage.conflictHits = await scanConflicts(userId, intake.matterType, intake.clientName, data, intake.id)
 
-      // Keep the answer-deadline task in sync with the recomputed triage —
-      // a corrected service date must move the calendared deadline with it.
-      if (intake.matterType === 'debt-defense') {
-        const deadline = (triage as { answerDeadline?: { deadline: string; internalDeadline: string; basis: string; caveat: string } }).answerDeadline
-        if (deadline) {
-          const taskValues = {
-            title: `ANSWER DUE ${deadline.deadline} — ${intake.clientName} (${data.plaintiffName})`,
-            description: `Debt-defense answer deadline. Internal deadline ${deadline.internalDeadline} (3 business days early). ${deadline.basis}. ${deadline.caveat}`,
-            priority: 'high',
-            dueDate: deadline.internalDeadline,
-          }
-          const existing = relatedTaskId
-            ? await db.select().from(tasks).where(eq(tasks.id, relatedTaskId)).get()
-            : undefined
-          if (existing) {
-            await db.update(tasks)
-              .set({ ...taskValues, updatedAt: new Date().toISOString() })
-              .where(eq(tasks.id, existing.id))
-          } else {
-            const [task] = await db.insert(tasks).values({ userId, ...taskValues }).returning()
-            relatedTaskId = task.id
-          }
+      // Keep the deadline task in sync with the recomputed triage — a corrected
+      // service or accident date must move the calendared deadline with it.
+      const taskValues = deadlineTaskValues(intake.matterType, intake.clientName, data, triage as Record<string, unknown>)
+      if (taskValues) {
+        const existing = relatedTaskId
+          ? await db.select().from(tasks).where(eq(tasks.id, relatedTaskId)).get()
+          : undefined
+        if (existing) {
+          await db.update(tasks)
+            .set({ ...taskValues, updatedAt: new Date().toISOString() })
+            .where(eq(tasks.id, existing.id))
+        } else {
+          const [task] = await db.insert(tasks).values({ userId, ...taskValues }).returning()
+          relatedTaskId = task.id
         }
       }
     }

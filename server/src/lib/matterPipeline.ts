@@ -33,6 +33,7 @@ export const STAGES: Record<string, string[]> = {
   'expunction': ['intake', 'records-verification', 'petition-filed', 'order-signed', 'closed'],
   'uncontested-divorce': ['intake', 'petition-filed', 'waiver-signed', 'decree-circulating', 'proved-up', 'closed'],
   'estate-package': ['intake', 'drafting', 'signing-scheduled', 'executed', 'closed'],
+  'reduced-fee-mva': ['intake', 'treating', 'records', 'demand', 'negotiation', 'settled', 'closed'],
 }
 
 export const MILESTONES: Record<string, MilestoneDef[]> = {
@@ -242,6 +243,84 @@ MILESTONES['estate-package'] = [
       description: 'Reach out for a plan review; offer spouse/family packages.',
       dueDate: plusDays(date, 1095),
       priority: 'low',
+    }],
+  },
+]
+
+MILESTONES['reduced-fee-mva'] = [
+  {
+    id: 'lorSent',
+    label: 'LOR + preservation letters sent',
+    advanceStageTo: 'treating',
+    tasks: (date) => [{
+      title: 'Confirm carrier acknowledgment and claim number',
+      description: 'Liability carrier must acknowledge representation; all contact through the firm from here. Log the adjuster and claim number.',
+      dueDate: plusDays(date, 14),
+      priority: 'medium',
+    }, {
+      title: 'Submit PIP/MedPay claim with client’s carrier',
+      description: 'Pull the dec page; first-party benefits are never left unclaimed on this track.',
+      dueDate: plusDays(date, 7),
+      priority: 'medium',
+    }, {
+      title: 'Treatment check-in cadence (30 days)',
+      description: 'Client status call: treating? gaps? new providers? Gaps over 30 days get flagged to the attorney.',
+      dueDate: plusDays(date, 30),
+      priority: 'low',
+    }],
+  },
+  {
+    id: 'treatmentComplete',
+    label: 'Treatment complete',
+    advanceStageTo: 'records',
+    tasks: (date) => [{
+      title: 'Order all records and itemized bills',
+      description: 'Every provider from intake plus any added during treatment. HIPAA authorizations on file; request affidavit-ready billing records.',
+      dueDate: plusDays(date, 3),
+      priority: 'high',
+    }],
+  },
+  {
+    id: 'recordsComplete',
+    label: 'Records & bills complete',
+    advanceStageTo: 'demand',
+    tasks: (date) => [{
+      title: 'Draft demand (pi-demand-letter skill)',
+      description: 'Full demand with liability, damages, and specials; Stowers-compliant policy-limits framing where the facts support it — attorney signs before it goes out.',
+      dueDate: plusDays(date, 7),
+      priority: 'high',
+    }],
+  },
+  {
+    id: 'demandSent',
+    label: 'Demand sent',
+    advanceStageTo: 'negotiation',
+    tasks: (date) => [{
+      title: 'Demand response follow-up',
+      description: 'Chase the adjuster at the demand’s stated deadline; log every offer in writing. If the demand was Stowers-framed, its deadline is tracked to the day.',
+      dueDate: plusDays(date, 30),
+      priority: 'high',
+    }],
+  },
+  {
+    id: 'settled',
+    label: 'Settled (client authority documented)',
+    advanceStageTo: 'settled',
+    tasks: (date) => [{
+      title: 'Review release before client signs',
+      description: 'Scope limited to this claim; no confidentiality or indemnity surprises; Medicare language reviewed if applicable.',
+      dueDate: plusDays(date, 7),
+      priority: 'high',
+    }, {
+      title: 'Resolve liens and reimbursement claims',
+      description: 'Hospital liens (Tex. Prop. Code ch. 55), health plan/Medicare/Medicaid/ERISA reimbursement — negotiate reductions, document zero-balance letters.',
+      dueDate: plusDays(date, 30),
+      priority: 'high',
+    }, {
+      title: 'Closing statement + disbursement',
+      description: 'Fee exactly as contracted (reduced rate unless suit was filed), expenses itemized, client signature on the closing statement before disbursement.',
+      dueDate: plusDays(date, 30),
+      priority: 'high',
     }],
   },
 ]
