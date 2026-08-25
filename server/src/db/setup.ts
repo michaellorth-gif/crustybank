@@ -199,11 +199,20 @@ db.exec(`
     client_email TEXT,
     client_phone TEXT,
     status TEXT NOT NULL DEFAULT 'new',
+    stage TEXT NOT NULL DEFAULT 'intake',
+    source TEXT NOT NULL DEFAULT 'internal',
     data TEXT NOT NULL,
     triage TEXT,
+    key_dates TEXT,
     review_notes TEXT,
     related_task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS firm_settings (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    data TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
 
@@ -224,6 +233,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_shared_items_shared_with_id ON shared_items(shared_with_id);
   CREATE INDEX IF NOT EXISTS idx_legal_intakes_user_id ON legal_intakes(user_id);
 `)
+
+// Additive migrations for databases created before these columns existed
+const intakeCols = (db.prepare('PRAGMA table_info(legal_intakes)').all() as Array<{ name: string }>).map((c) => c.name)
+if (!intakeCols.includes('stage')) db.exec("ALTER TABLE legal_intakes ADD COLUMN stage TEXT NOT NULL DEFAULT 'intake'")
+if (!intakeCols.includes('source')) db.exec("ALTER TABLE legal_intakes ADD COLUMN source TEXT NOT NULL DEFAULT 'internal'")
+if (!intakeCols.includes('key_dates')) db.exec('ALTER TABLE legal_intakes ADD COLUMN key_dates TEXT')
 
 console.log('Database setup complete!')
 console.log(`Database file: ${dbPath}`)

@@ -12,6 +12,9 @@ export default function DivorceForm({
   isLoading: boolean
 }) {
   const [client, setClient] = useState<ClientInfo>({ clientName: '', clientEmail: '', clientPhone: '' })
+  const [respondentName, setRespondentName] = useState('')
+  const [respondentAddress, setRespondentAddress] = useState('')
+  const [formerName, setFormerName] = useState('')
   const [filingCounty, setFilingCounty] = useState('')
   const [residencyStateSixMonths, setResidencyStateSixMonths] = useState(false)
   const [residencyCountyNinetyDays, setResidencyCountyNinetyDays] = useState(false)
@@ -36,6 +39,9 @@ export default function DivorceForm({
       clientEmail: client.clientEmail || undefined,
       clientPhone: client.clientPhone || undefined,
       data: {
+        respondentName,
+        respondentAddress: respondentAddress || undefined,
+        formerName: formerName || undefined,
         filingCounty,
         residencyStateSixMonths,
         residencyCountyNinetyDays,
@@ -77,11 +83,16 @@ export default function DivorceForm({
       </Section>
 
       <Section title="Marriage details">
+        <TextField label="Other spouse (respondent) — full name" required value={respondentName} onChange={setRespondentName} />
+        <TextField label="Respondent's mailing address" value={respondentAddress} onChange={setRespondentAddress} placeholder="For the waiver packet" />
         <div className="grid grid-cols-2 gap-3">
           <DateField label="Date of marriage" value={marriageDate} onChange={setMarriageDate} />
           <DateField label="Date of separation" value={separationDate} onChange={setSeparationDate} />
         </div>
         <CheckField label="A spouse wants a former name restored in the decree" checked={nameChangeRequested} onChange={setNameChangeRequested} />
+        {nameChangeRequested && (
+          <TextField label="Former name to restore (exact spelling)" value={formerName} onChange={setFormerName} />
+        )}
       </Section>
 
       <Section title="Notes">

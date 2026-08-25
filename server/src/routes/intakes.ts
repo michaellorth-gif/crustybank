@@ -1,8 +1,8 @@
 import { Router, Response } from 'express'
 import { z } from 'zod'
 import { db } from '../db/index.js'
-import { legalIntakes, tasks } from '../db/schema.js'
-import { eq, desc, and } from 'drizzle-orm'
+import { legalIntakes, tasks, documents, firmSettings } from '../db/schema.js'
+import { eq, desc, and, like } from 'drizzle-orm'
 import { AuthRequest } from '../middleware/auth.js'
 import {
   triageDebtDefense,
@@ -12,6 +12,8 @@ import {
   ExpunctionIntakeData,
   DivorceIntakeData,
 } from '../lib/legalTriage.js'
+import { generateDocument, DOC_TYPES, Firm } from '../lib/docgen.js'
+import { STAGES, MILESTONES, findMilestone } from '../lib/matterPipeline.js'
 
 const router = Router()
 
@@ -52,6 +54,9 @@ const expunctionDataSchema = z.object({
 }).passthrough()
 
 const divorceDataSchema = z.object({
+  respondentName: z.string().optional(),
+  respondentAddress: z.string().optional(),
+  formerName: z.string().optional(),
   residencyStateSixMonths: z.boolean(),
   residencyCountyNinetyDays: z.boolean(),
   filingCounty: z.string().min(1),
@@ -106,6 +111,57 @@ function runTriage(matterType: string, data: Record<string, unknown>): Record<st
   }
 }
 
+// Shared creation path used by the authenticated route and the public portal.
+export async function createIntakeRecord(
+  userId: string,
+  body: z.infer<typeof createIntakeSchema>,
+  source: 'internal' | 'public'
+) {
+  const triage = runTriage(body.matterType, body.data)
+
+  let relatedTaskId: string | undefined
+  if (body.matterType === 'debt-defense') {
+    const deadline = (triage as { answerDeadline?: { deadline: string; internalDeadline: string; basis: string; caveat: string } }).answerDeadline
+    if (deadline) {
+      const [task] = await db.insert(tasks).values({
+        userId,
+        title: `ANSWER DUE ${deadline.deadline} — ${body.clientName} (${body.data.plaintiffName})`,
+        description: `Debt-defense answer deadline. Internal deadline ${deadline.internalDeadline} (3 business days early). ${deadline.basis}. ${deadline.caveat}`,
+        priority: 'high',
+        dueDate: deadline.internalDeadline,
+      }).returning()
+      relatedTaskId = task.id
+    }
+  }
+
+  const [intake] = await db.insert(legalIntakes).values({
+    userId,
+    matterType: body.matterType,
+    clientName: body.clientName,
+    clientEmail: body.clientEmail || null,
+    clientPhone: body.clientPhone || null,
+    source,
+    data: body.data as Record<string, unknown>,
+    triage,
+    relatedTaskId,
+  }).returning()
+
+  return intake
+}
+
+export { createIntakeSchema }
+
+// Pipeline metadata for the client UI (must precede /:id routes)
+router.get('/meta', (_req: AuthRequest, res: Response) => {
+  res.json({
+    docTypes: DOC_TYPES,
+    stages: STAGES,
+    milestones: Object.fromEntries(
+      Object.entries(MILESTONES).map(([mt, defs]) => [mt, defs.map((d) => ({ id: d.id, label: d.label }))])
+    ),
+  })
+})
+
 // List intakes (newest first), optional ?matterType= and ?status= filters
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
@@ -146,34 +202,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!
     const body = createIntakeSchema.parse(req.body)
-    const triage = runTriage(body.matterType, body.data)
-
-    let relatedTaskId: string | undefined
-    if (body.matterType === 'debt-defense') {
-      const deadline = (triage as { answerDeadline?: { deadline: string; internalDeadline: string; basis: string; caveat: string } }).answerDeadline
-      if (deadline) {
-        const [task] = await db.insert(tasks).values({
-          userId,
-          title: `ANSWER DUE ${deadline.deadline} — ${body.clientName} (${body.data.plaintiffName})`,
-          description: `Debt-defense answer deadline. Internal deadline ${deadline.internalDeadline} (3 business days early). ${deadline.basis}. ${deadline.caveat}`,
-          priority: 'high',
-          dueDate: deadline.internalDeadline,
-        }).returning()
-        relatedTaskId = task.id
-      }
-    }
-
-    const [intake] = await db.insert(legalIntakes).values({
-      userId,
-      matterType: body.matterType,
-      clientName: body.clientName,
-      clientEmail: body.clientEmail || null,
-      clientPhone: body.clientPhone || null,
-      data: body.data as Record<string, unknown>,
-      triage,
-      relatedTaskId,
-    }).returning()
-
+    const intake = await createIntakeRecord(userId, body, 'internal')
     res.status(201).json(intake)
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -187,6 +216,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 // Update status / review notes / data (data changes re-run triage)
 const updateIntakeSchema = z.object({
   status: z.enum(['new', 'in-review', 'accepted', 'declined']).optional(),
+  stage: z.string().optional(),
   reviewNotes: z.string().optional(),
   data: z.record(z.unknown()).optional(),
 })
@@ -212,10 +242,15 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
       triage = runTriage(intake.matterType, data)
     }
 
+    if (updates.stage && !(STAGES[intake.matterType] || []).includes(updates.stage)) {
+      return res.status(400).json({ message: `Invalid stage for ${intake.matterType}` })
+    }
+
     const [updated] = await db
       .update(legalIntakes)
       .set({
         status: updates.status ?? intake.status,
+        stage: updates.stage ?? intake.stage,
         reviewNotes: updates.reviewNotes ?? intake.reviewNotes,
         data,
         triage,
@@ -231,6 +266,126 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
     }
     console.error('Error updating intake:', error)
     res.status(500).json({ message: 'Failed to update intake' })
+  }
+})
+
+// Generate a draft document from an intake into the Documents system
+const generateSchema = z.object({ docType: z.string().min(1) })
+
+router.post('/:id/generate', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!
+    const { docType } = generateSchema.parse(req.body)
+
+    const intake = await db.select().from(legalIntakes).where(eq(legalIntakes.id, req.params.id)).get()
+    if (!intake) return res.status(404).json({ message: 'Intake not found' })
+    if (intake.userId !== userId) return res.status(403).json({ message: 'Access denied' })
+
+    const validTypes = (DOC_TYPES[intake.matterType] || []).map((d) => d.id)
+    if (!validTypes.includes(docType)) {
+      return res.status(400).json({ message: `Invalid docType for ${intake.matterType}. Valid: ${validTypes.join(', ')}` })
+    }
+
+    const settings = await db.select().from(firmSettings).where(eq(firmSettings.userId, userId)).get()
+    const firm: Firm = (settings?.data as Firm) || {}
+
+    const doc = generateDocument(intake.matterType, docType, intake.data, intake.clientName, firm)
+    const [saved] = await db.insert(documents).values({
+      userId,
+      title: doc.title,
+      content: doc.content,
+      category: doc.category,
+      tags: [intake.matterType, `intake:${intake.id}`, docType],
+    }).returning()
+
+    res.status(201).json(saved)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: 'Invalid input', errors: error.errors })
+    }
+    console.error('Error generating document:', error)
+    res.status(500).json({ message: 'Failed to generate document' })
+  }
+})
+
+// List documents generated from this intake
+router.get('/:id/documents', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!
+    const intake = await db.select().from(legalIntakes).where(eq(legalIntakes.id, req.params.id)).get()
+    if (!intake) return res.status(404).json({ message: 'Intake not found' })
+    if (intake.userId !== userId) return res.status(403).json({ message: 'Access denied' })
+
+    const docs = await db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.userId, userId), like(documents.tags, `%intake:${intake.id}%`)))
+      .orderBy(desc(documents.createdAt))
+    res.json(docs)
+  } catch (error) {
+    console.error('Error listing intake documents:', error)
+    res.status(500).json({ message: 'Failed to list documents' })
+  }
+})
+
+// Record a milestone: stores the date, creates the downstream deadline tasks,
+// and advances the pipeline stage.
+const milestoneSchema = z.object({
+  milestone: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+})
+
+router.post('/:id/milestone', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!
+    const { milestone, date } = milestoneSchema.parse(req.body)
+
+    const intake = await db.select().from(legalIntakes).where(eq(legalIntakes.id, req.params.id)).get()
+    if (!intake) return res.status(404).json({ message: 'Intake not found' })
+    if (intake.userId !== userId) return res.status(403).json({ message: 'Access denied' })
+
+    const def = findMilestone(intake.matterType, milestone)
+    if (!def) return res.status(400).json({ message: `Unknown milestone "${milestone}" for ${intake.matterType}` })
+
+    const keyDates = { ...(intake.keyDates || {}) }
+    const warning = def.warn ? def.warn(date, intake.data, keyDates) : null
+
+    // Create the downstream tasks only on first recording of this milestone —
+    // re-recording updates the date without duplicating tasks.
+    let taskIds = keyDates[milestone]?.taskIds || []
+    const createdTasks = []
+    if (taskIds.length === 0 && !warning) {
+      for (const t of def.tasks(date, intake.data)) {
+        const [task] = await db.insert(tasks).values({
+          userId,
+          title: `${t.title} — ${intake.clientName}`,
+          description: t.description,
+          priority: t.priority,
+          dueDate: t.dueDate,
+        }).returning()
+        taskIds.push(task.id)
+        createdTasks.push(task)
+      }
+    }
+
+    keyDates[milestone] = { date, taskIds }
+    const [updated] = await db
+      .update(legalIntakes)
+      .set({
+        keyDates,
+        stage: !warning && def.advanceStageTo ? def.advanceStageTo : intake.stage,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(legalIntakes.id, req.params.id))
+      .returning()
+
+    res.json({ intake: updated, createdTasks, warning })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: 'Invalid input', errors: error.errors })
+    }
+    console.error('Error recording milestone:', error)
+    res.status(500).json({ message: 'Failed to record milestone' })
   }
 })
 

@@ -28,12 +28,30 @@ follow-through**, with honest routing out of the product when a case doesn't fit
    1/1/2025). Rule cites (TRCP) and dollar caps should be pinpoint-checked
    periodically; each reference file marks what was verified.
 
-## Roadmap (from the practice-line planning discussion)
+## The platform (built into the app)
+
+The client/server app now implements the full intake-to-resolution pipeline:
+
+| Piece | Where | What it does |
+|---|---|---|
+| Intake forms | `/intakes` page (staff) and `/intake` (public, no login) | Structured forms per practice line; public submissions are rate-limited, honeypotted, and carry a no-attorney-client-relationship disclaimer |
+| Triage engine | `server/src/lib/legalTriage.ts` | Answer-deadline computation (TRCP 502.5 / 99), limitations screen, plaintiff classification, ch. 55A eligibility routes and waiting-period dates, divorce Tier 1 gate; runs on every submission |
+| Auto-deadline tasks | intake creation + milestones | Served debt suits create a high-priority task 3 business days before the answer deadline; each recorded milestone creates its downstream deadline tasks |
+| Matter pipeline | `server/src/lib/matterPipeline.ts` | Stages per practice line; milestones (answer filed, petition filed, waiver signed, order signed, …) advance the stage and generate follow-ups; the waiver milestone hard-warns on a § 6.4035 signed-before-filing defect |
+| Document generation | `server/src/lib/docgen.ts` | One-click drafts from intake data + firm settings: answers, discovery, settlement letters, expunction petition/order, divorce petition/waiver/decree, and limited-scope engagement letters per product — all stamped DRAFT for attorney review, stored in Documents |
+| Firm settings | gear icon on `/intakes` | Attorney/firm identity for signature blocks |
+
+API surface: `POST /api/public/intake` (unauthenticated), `GET/POST/PATCH/DELETE
+/api/intakes`, `POST /api/intakes/:id/generate`, `GET /api/intakes/:id/documents`,
+`POST /api/intakes/:id/milestone`, `GET /api/intakes/meta`, `GET/PUT
+/api/firm-settings`.
+
+## Roadmap
 
 - Next products on the same backbone: wills/estate packages (reuses doc-assembly),
   small estate affidavits / muniment of title, traffic tickets (volume play + PI
   lead funnel), reduced-fee clear-liability MVA track (extends the existing
   pi-demand-letter workflow).
-- Infrastructure candidates: web intake forms feeding these skills' intake
-  templates, eFileTexas filing integration, deadline calendaring into the
-  practice-management stack.
+- Infrastructure candidates: eFileTexas filing integration, county-holiday-aware
+  deadline calendars, DOCX export of generated drafts, e-signature for engagement
+  letters, client status portal.

@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Scale, Trash2, AlertTriangle, ChevronDown, ChevronUp, Gavel, FileX2, HeartCrack } from 'lucide-react'
+import { Plus, Scale, Trash2, AlertTriangle, ChevronDown, ChevronUp, Gavel, FileX2, HeartCrack, Settings, Globe } from 'lucide-react'
 import { api } from '../services/api'
 import DebtDefenseForm from '../components/intake/DebtDefenseForm'
 import ExpunctionForm from '../components/intake/ExpunctionForm'
 import DivorceForm from '../components/intake/DivorceForm'
+import MatterPanel from '../components/intake/MatterPanel'
+import FirmSettingsModal from '../components/intake/FirmSettingsModal'
 import { IntakePayload } from '../components/intake/fields'
 
 type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce'
@@ -16,8 +18,11 @@ interface LegalIntake {
   clientEmail: string | null
   clientPhone: string | null
   status: 'new' | 'in-review' | 'accepted' | 'declined'
+  stage: string
+  source: 'internal' | 'public'
   data: Record<string, unknown>
   triage: Record<string, unknown> | null
+  keyDates: Record<string, { date: string; taskIds?: string[] }> | null
   reviewNotes: string | null
   relatedTaskId: string | null
   createdAt: string
@@ -39,6 +44,7 @@ const statusColors: Record<string, string> = {
 export default function LegalIntakes() {
   const [newIntakeType, setNewIntakeType] = useState<MatterType | null>(null)
   const [filter, setFilter] = useState<MatterType | 'all'>('all')
+  const [showFirmSettings, setShowFirmSettings] = useState(false)
   const queryClient = useQueryClient()
 
   const { data: intakes = [], isLoading } = useQuery({
@@ -96,8 +102,19 @@ export default function LegalIntakes() {
               {matterMeta[mt].label}
             </button>
           ))}
+          <button
+            onClick={() => setShowFirmSettings(true)}
+            className="flex items-center gap-2 border border-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+            title="Firm settings for document signature blocks"
+          >
+            <Settings size={16} />
+          </button>
         </div>
       </div>
+
+      <SummaryStrip intakes={intakes} />
+
+      {showFirmSettings && <FirmSettingsModal onClose={() => setShowFirmSettings(false)} />}
 
       <div className="flex gap-2 mb-6">
         {(['all', ...Object.keys(matterMeta)] as Array<MatterType | 'all'>).map((f) => (
@@ -187,6 +204,16 @@ function IntakeCard({
               <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${statusColors[intake.status]}`}>
                 {intake.status}
               </span>
+              {intake.stage !== 'intake' && (
+                <span className="px-2 py-0.5 rounded text-xs font-medium capitalize bg-indigo-100 text-indigo-700">
+                  {intake.stage.replace(/-/g, ' ')}
+                </span>
+              )}
+              {intake.source === 'public' && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-700" title="Submitted through the public portal">
+                  <Globe size={11} /> web
+                </span>
+              )}
             </div>
             <TriageSummary intake={intake} />
             {flags.length > 0 && (
@@ -231,17 +258,45 @@ function IntakeCard({
       </div>
 
       {expanded && (
-        <div className="mt-4 pt-4 border-t border-gray-100 grid md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <h4 className="font-medium text-gray-900 mb-2">Intake data</h4>
-            <KeyValueList obj={intake.data} />
+        <>
+          <MatterPanel intake={intake} />
+          <div className="mt-4 pt-4 border-t border-gray-100 grid md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <h4 className="font-medium text-gray-900 mb-2">Intake data</h4>
+              <KeyValueList obj={intake.data} />
+            </div>
+            <div>
+              <h4 className="font-medium text-gray-900 mb-2">Triage (automated first pass)</h4>
+              <KeyValueList obj={triage} />
+            </div>
           </div>
-          <div>
-            <h4 className="font-medium text-gray-900 mb-2">Triage (automated first pass)</h4>
-            <KeyValueList obj={triage} />
-          </div>
-        </div>
+        </>
       )}
+    </div>
+  )
+}
+
+function SummaryStrip({ intakes }: { intakes: LegalIntake[] }) {
+  const open = intakes.filter((i) => i.status === 'new' || i.status === 'in-review')
+  const urgent = intakes.filter((i) => {
+    const days = i.triage?.daysRemaining as number | null | undefined
+    return typeof days === 'number' && days <= 5 && i.status !== 'declined' && i.stage !== 'closed'
+  })
+  const publicNew = intakes.filter((i) => i.source === 'public' && i.status === 'new')
+  const cells = [
+    { label: 'Open intakes', value: open.length, cls: 'text-gray-900' },
+    { label: 'Urgent deadlines (≤5 days)', value: urgent.length, cls: urgent.length ? 'text-red-600' : 'text-gray-900' },
+    { label: 'New from web portal', value: publicNew.length, cls: publicNew.length ? 'text-teal-600' : 'text-gray-900' },
+    { label: 'Accepted matters', value: intakes.filter((i) => i.status === 'accepted').length, cls: 'text-green-700' },
+  ]
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      {cells.map((c) => (
+        <div key={c.label} className="bg-white rounded-lg shadow-sm px-4 py-3">
+          <div className={`text-2xl font-bold ${c.cls}`}>{c.value}</div>
+          <div className="text-xs text-gray-500">{c.label}</div>
+        </div>
+      ))}
     </div>
   )
 }

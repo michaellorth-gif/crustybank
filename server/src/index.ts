@@ -13,6 +13,8 @@ import teamRoutes from './routes/teams.js'
 import documentRoutes from './routes/documents.js'
 import workflowRoutes from './routes/workflows.js'
 import intakeRoutes from './routes/intakes.js'
+import firmSettingsRoutes from './routes/firmSettings.js'
+import publicIntakeRoutes from './routes/publicIntake.js'
 import emailRoutes from './routes/emails.js'
 import adminRoutes from './routes/admin.js'
 import { authMiddleware } from './middleware/auth.js'
@@ -27,6 +29,7 @@ app.use(express.json())
 
 // Public routes
 app.use('/api/auth', authRoutes)
+app.use('/api/public', publicIntakeRoutes)
 
 // Protected routes
 app.use('/api/tasks', authMiddleware, taskRoutes)
@@ -39,6 +42,7 @@ app.use('/api/teams', authMiddleware, teamRoutes)
 app.use('/api/documents', authMiddleware, documentRoutes)
 app.use('/api/workflows', authMiddleware, workflowRoutes)
 app.use('/api/intakes', authMiddleware, intakeRoutes)
+app.use('/api/firm-settings', authMiddleware, firmSettingsRoutes)
 app.use('/api/emails', authMiddleware, emailRoutes)
 app.use('/api/admin', authMiddleware, adminRoutes)
 
