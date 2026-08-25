@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Scale, Trash2, AlertTriangle, ChevronDown, ChevronUp, Gavel, FileX2, HeartCrack, Settings, Globe } from 'lucide-react'
+import { Plus, Scale, Trash2, AlertTriangle, ChevronDown, ChevronUp, Gavel, FileX2, HeartCrack, ScrollText, Settings, Globe } from 'lucide-react'
 import { api } from '../services/api'
 import DebtDefenseForm from '../components/intake/DebtDefenseForm'
 import ExpunctionForm from '../components/intake/ExpunctionForm'
 import DivorceForm from '../components/intake/DivorceForm'
+import EstateForm from '../components/intake/EstateForm'
 import MatterPanel from '../components/intake/MatterPanel'
 import FirmSettingsModal from '../components/intake/FirmSettingsModal'
 import { IntakePayload } from '../components/intake/fields'
 
-type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce'
+type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package'
 
 interface LegalIntake {
   id: string
@@ -32,6 +33,7 @@ const matterMeta: Record<MatterType, { label: string; icon: typeof Gavel; color:
   'debt-defense': { label: 'Debt Defense', icon: Gavel, color: 'bg-blue-100 text-blue-700' },
   'expunction': { label: 'Expunction', icon: FileX2, color: 'bg-purple-100 text-purple-700' },
   'uncontested-divorce': { label: 'Uncontested Divorce', icon: HeartCrack, color: 'bg-rose-100 text-rose-700' },
+  'estate-package': { label: 'Estate Package', icon: ScrollText, color: 'bg-amber-100 text-amber-700' },
 }
 
 const statusColors: Record<string, string> = {
@@ -145,6 +147,9 @@ export default function LegalIntakes() {
             )}
             {newIntakeType === 'uncontested-divorce' && (
               <DivorceForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => setNewIntakeType(null)} isLoading={createIntake.isPending} />
+            )}
+            {newIntakeType === 'estate-package' && (
+              <EstateForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => setNewIntakeType(null)} isLoading={createIntake.isPending} />
             )}
           </div>
         </div>
@@ -330,6 +335,18 @@ function TriageSummary({ intake }: { intake: LegalIntake }) {
           <p key={i}><span className="font-medium">{s.label}:</span> {s.recommendation}</p>
         ))}
       </div>
+    )
+  }
+
+  if (intake.matterType === 'estate-package') {
+    const eligible = t.packageEligible as boolean
+    return (
+      <p className="text-sm mt-1">
+        <span className={eligible ? 'text-green-700 font-medium' : 'text-orange-700 font-medium'}>
+          {eligible ? 'Package eligible' : 'Not flat-fee package'}
+        </span>
+        <span className="text-gray-600"> · {String(t.recommendation || '')}</span>
+      </p>
     )
   }
 

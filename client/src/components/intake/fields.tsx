@@ -142,7 +142,7 @@ export function ClientInfoFields({ value, onChange }: { value: ClientInfo; onCha
 }
 
 export interface IntakePayload {
-  matterType: 'debt-defense' | 'expunction' | 'uncontested-divorce'
+  matterType: 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package'
   clientName: string
   clientEmail?: string
   clientPhone?: string

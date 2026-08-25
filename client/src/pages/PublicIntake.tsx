@@ -3,13 +3,14 @@
 
 import { useState } from 'react'
 import axios from 'axios'
-import { Scale, Gavel, FileX2, HeartCrack, CheckCircle, ShieldAlert } from 'lucide-react'
+import { Scale, Gavel, FileX2, HeartCrack, ScrollText, CheckCircle, ShieldAlert } from 'lucide-react'
 import DebtDefenseForm from '../components/intake/DebtDefenseForm'
 import ExpunctionForm from '../components/intake/ExpunctionForm'
 import DivorceForm from '../components/intake/DivorceForm'
+import EstateForm from '../components/intake/EstateForm'
 import { IntakePayload } from '../components/intake/fields'
 
-type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce'
+type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package'
 
 const products: Array<{ id: MatterType; icon: typeof Gavel; title: string; blurb: string }> = [
   {
@@ -29,6 +30,12 @@ const products: Array<{ id: MatterType; icon: typeof Gavel; title: string; blurb
     icon: HeartCrack,
     title: 'Agreed divorce',
     blurb: 'Flat-fee uncontested divorce for spouses who agree on everything — no children, no real estate.',
+  },
+  {
+    id: 'estate-package',
+    icon: ScrollText,
+    title: 'Will & estate package',
+    blurb: 'Simple will, powers of attorney, and medical directives — one flat fee, one signing appointment.',
   },
 ]
 
@@ -84,7 +91,7 @@ export default function PublicIntake() {
           </div>
         ) : !selected ? (
           <div className="space-y-4">
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-2 gap-4">
               {products.map((p) => {
                 const Icon = p.icon
                 return (
@@ -127,6 +134,9 @@ export default function PublicIntake() {
             )}
             {selected === 'uncontested-divorce' && (
               <DivorceForm onSubmit={submit} onClose={() => setSelected(null)} isLoading={submitting} />
+            )}
+            {selected === 'estate-package' && (
+              <EstateForm onSubmit={submit} onClose={() => setSelected(null)} isLoading={submitting} />
             )}
             <p className="text-xs text-gray-500 mt-4 pt-4 border-t border-gray-100">{DISCLAIMER}</p>
           </div>

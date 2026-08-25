@@ -11,6 +11,7 @@ follow-through**, with honest routing out of the product when a case doesn't fit
 | `debt-defense` | Flat-fee defense of consumer collection suits (**flagship**) | Mostly JP (≤ $20k), some county/district | Deadline triage, answer generation (general + verified denials), TRCP 500.9 discovery pressure, exemption-based settlement posture |
 | `expunction` | Record clearing under CCP ch. 55A (+ nondisclosure pivot) | District (mostly) | Arrest-by-arrest eligibility tree with verified 55A cites, petition + order generation, agency-list completeness |
 | `uncontested-divorce` | Tier 1 agreed divorce: no kids, no real property | District / CCL family | Hard intake gate, § 6.4035 waiver sequencing, 60-day clock, agreed decree with completeness check |
+| `estate-package` | Simple will + statutory durable POA + medical POA + directive, flat fee | n/a (transactional) | Gate (tax exposure, special needs, contest risk, capacity → route out/escalate), package docgen, signing-ceremony checklist, 3-year review reminder |
 
 ## Shared operating rules
 

@@ -8,9 +8,11 @@ import {
   triageDebtDefense,
   triageExpunction,
   triageDivorce,
+  triageEstate,
   DebtIntakeData,
   ExpunctionIntakeData,
   DivorceIntakeData,
+  EstateIntakeData,
 } from '../lib/legalTriage.js'
 import { generateDocument, DOC_TYPES, Firm } from '../lib/docgen.js'
 import { STAGES, MILESTONES, findMilestone } from '../lib/matterPipeline.js'
@@ -74,6 +76,37 @@ const divorceDataSchema = z.object({
   notes: z.string().optional(),
 }).passthrough()
 
+const estateDataSchema = z.object({
+  maritalStatus: z.enum(['single', 'married', 'widowed', 'divorced']),
+  spouseName: z.string().optional(),
+  mirrorPackageForSpouse: z.boolean().optional(),
+  children: z.array(z.object({
+    name: z.string().min(1),
+    minor: z.boolean(),
+    fromPriorRelationship: z.boolean().optional(),
+  })).default([]),
+  executorName: z.string().min(1),
+  executorAltName: z.string().optional(),
+  guardianName: z.string().optional(),
+  financialAgent: z.string().min(1),
+  financialAgentAlt: z.string().optional(),
+  medicalAgent: z.string().min(1),
+  medicalAgentAlt: z.string().optional(),
+  poaEffective: z.enum(['immediately', 'incapacity']),
+  residuaryPlan: z.enum(['spouse-then-children', 'children-equally', 'other']),
+  residuaryOther: z.string().optional(),
+  trustAge: z.number().int().min(18).max(40).optional(),
+  estateOverExemptionRisk: z.boolean(),
+  specialNeedsBeneficiary: z.boolean(),
+  disinheritance: z.boolean(),
+  capacityConcerns: z.boolean(),
+  complexAssets: z.boolean(),
+  outOfStateProperty: z.boolean(),
+  priorWill: z.boolean(),
+  homesteadCounty: z.string().optional(),
+  notes: z.string().optional(),
+}).passthrough()
+
 const createIntakeSchema = z.discriminatedUnion('matterType', [
   z.object({
     matterType: z.literal('debt-defense'),
@@ -96,6 +129,13 @@ const createIntakeSchema = z.discriminatedUnion('matterType', [
     clientPhone: z.string().optional(),
     data: divorceDataSchema,
   }),
+  z.object({
+    matterType: z.literal('estate-package'),
+    clientName: z.string().min(1),
+    clientEmail: z.string().email().optional().or(z.literal('')),
+    clientPhone: z.string().optional(),
+    data: estateDataSchema,
+  }),
 ])
 
 function runTriage(matterType: string, data: Record<string, unknown>): Record<string, unknown> {
@@ -106,6 +146,8 @@ function runTriage(matterType: string, data: Record<string, unknown>): Record<st
       return triageExpunction(data as unknown as ExpunctionIntakeData)
     case 'uncontested-divorce':
       return triageDivorce(data as unknown as DivorceIntakeData)
+    case 'estate-package':
+      return triageEstate(data as unknown as EstateIntakeData)
     default:
       return {}
   }
@@ -237,6 +279,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
       const merged = { ...intake.data, ...updates.data }
       const schema = intake.matterType === 'debt-defense' ? debtDataSchema
         : intake.matterType === 'expunction' ? expunctionDataSchema
+        : intake.matterType === 'estate-package' ? estateDataSchema
         : divorceDataSchema
       data = schema.parse(merged) as Record<string, unknown>
       triage = runTriage(intake.matterType, data)

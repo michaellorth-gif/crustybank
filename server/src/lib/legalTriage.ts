@@ -287,6 +287,81 @@ export interface DivorceIntakeData {
   [key: string]: unknown
 }
 
+export interface EstateChild {
+  name: string
+  minor: boolean
+  fromPriorRelationship?: boolean
+}
+
+export interface EstateIntakeData {
+  maritalStatus: 'single' | 'married' | 'widowed' | 'divorced'
+  spouseName?: string
+  mirrorPackageForSpouse?: boolean
+  children: EstateChild[]
+  executorName: string
+  executorAltName?: string
+  guardianName?: string
+  financialAgent: string
+  financialAgentAlt?: string
+  medicalAgent: string
+  medicalAgentAlt?: string
+  poaEffective: 'immediately' | 'incapacity'
+  residuaryPlan: 'spouse-then-children' | 'children-equally' | 'other'
+  residuaryOther?: string
+  trustAge?: number
+  estateOverExemptionRisk: boolean
+  specialNeedsBeneficiary: boolean
+  disinheritance: boolean
+  capacityConcerns: boolean
+  complexAssets: boolean
+  outOfStateProperty: boolean
+  priorWill: boolean
+  homesteadCounty?: string
+  [key: string]: unknown
+}
+
+export function triageEstate(data: EstateIntakeData): Record<string, unknown> {
+  const failures: string[] = []
+  const escalations: string[] = []
+  const flags: string[] = []
+
+  if (data.estateOverExemptionRisk) failures.push('Possible federal estate-tax exposure — tax-planned documents needed; outside the flat-fee package (verify current exemption)')
+  if (data.specialNeedsBeneficiary) failures.push('Special-needs beneficiary — supplemental-needs trust planning required; route to hourly/referral')
+  if (data.disinheritance) failures.push('Disinheritance / unexpected unequal treatment — contest-risk engagement; outside the flat-fee package')
+  if (data.complexAssets) failures.push('Closely held business / significant minerals / foreign assets — outside the flat-fee package')
+  if (data.outOfStateProperty) failures.push('Out-of-state real property — ancillary planning needed; outside the flat-fee package')
+  if (data.capacityConcerns) escalations.push('Capacity or undue-influence concern — Mike must evaluate BEFORE any drafting; document or decline')
+
+  const minors = data.children.filter((c) => c.minor)
+  const blended = data.maritalStatus === 'married' && data.children.some((c) => c.fromPriorRelationship)
+  if (minors.length > 0 && !data.guardianName) flags.push(`${minors.length} minor child(ren) but no guardian named — collect guardian + alternate before drafting`)
+  if (minors.length > 0) flags.push('Minor children — include contingent trust and guardian designation')
+  if (blended) flags.push('Blended family — confirm both spouses understand the residuary plan; consider naming children explicitly')
+  if (data.priorWill) flags.push('Prior will exists — collect it; new will revokes all priors; consider physical destruction after execution')
+  if (data.residuaryPlan === 'other') flags.push('Custom residuary plan — Mike drafts this article by hand')
+  if (data.maritalStatus === 'married' && !data.mirrorPackageForSpouse) flags.push('Married but no mirror package for spouse — offer bundle pricing')
+
+  const eligible = failures.length === 0 && escalations.length === 0
+
+  return {
+    matter: 'estate-package',
+    packageEligible: eligible,
+    gateFailures: failures,
+    escalations,
+    flags,
+    documents: eligible
+      ? ['Simple will (self-proved)', 'Statutory durable POA', 'Medical POA + disclosure', 'Directive to physicians', 'HIPAA release (optional)']
+      : [],
+    executionReminder: 'Will: 2 disinterested witnesses (14+, non-beneficiaries) + notary for self-proving affidavit. POA: notarized. MPOA/directive: witnesses or notary per current statute. Client alone — no beneficiaries in the room.',
+    recommendation: eligible
+      ? 'Package eligible — draft for attorney review; confirm beneficiary designations on retirement/insurance match the plan'
+      : escalations.length > 0
+        ? 'ESCALATE to attorney before any drafting'
+        : 'Route out of flat-fee package with explanation; offer hourly or referral',
+    disclaimer: 'Automated first-pass triage for attorney review — not a legal determination.',
+  }
+}
+
 export function triageDivorce(data: DivorceIntakeData): Record<string, unknown> {
   const failures: string[] = []
   const escalations: string[] = []

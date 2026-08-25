@@ -32,6 +32,7 @@ export const STAGES: Record<string, string[]> = {
   'debt-defense': ['intake', 'answer-filed', 'discovery', 'settlement', 'trial-prep', 'closed'],
   'expunction': ['intake', 'records-verification', 'petition-filed', 'order-signed', 'closed'],
   'uncontested-divorce': ['intake', 'petition-filed', 'waiver-signed', 'decree-circulating', 'proved-up', 'closed'],
+  'estate-package': ['intake', 'drafting', 'signing-scheduled', 'executed', 'closed'],
 }
 
 export const MILESTONES: Record<string, MilestoneDef[]> = {
@@ -198,6 +199,52 @@ export const MILESTONES: Record<string, MilestoneDef[]> = {
     },
   ],
 }
+
+MILESTONES['estate-package'] = [
+  {
+    id: 'draftsApproved',
+    label: 'Drafts approved by attorney',
+    advanceStageTo: 'drafting',
+    tasks: (date) => [{
+      title: 'Send drafts to client for review; schedule signing ceremony',
+      description: 'Client reviews the package; book the ceremony with 2 disinterested witnesses (14+, non-beneficiaries) and a notary. Client attends ALONE.',
+      dueDate: plusDays(date, 7),
+      priority: 'medium',
+    }],
+  },
+  {
+    id: 'signingScheduled',
+    label: 'Signing ceremony scheduled',
+    advanceStageTo: 'signing-scheduled',
+    tasks: (date) => [{
+      title: 'Signing ceremony prep — regenerate statutory forms from CURRENT statutes',
+      description: 'Pull current § 752.051 SDPOA form, MPOA form + § 166.163 disclosure, § 166.033 directive, § 251.104 self-proving affidavit. Confirm witnesses and notary.',
+      dueDate: plusDays(date, -2),
+      priority: 'high',
+    }],
+  },
+  {
+    id: 'executed',
+    label: 'Documents executed',
+    advanceStageTo: 'executed',
+    tasks: (date) => [{
+      title: 'Originals to client with storage letter; scans to file',
+      description: 'Log where the originals are kept. Closing letter: revisit on marriage/divorce/birth/death/asset changes or ~3 years.',
+      dueDate: plusDays(date, 3),
+      priority: 'high',
+    }, {
+      title: 'Beneficiary-designation audit confirmation',
+      description: 'Client must confirm retirement/life-insurance beneficiary designations match the plan — those pass OUTSIDE the will. Document the advice.',
+      dueDate: plusDays(date, 14),
+      priority: 'medium',
+    }, {
+      title: '3-year estate plan review reminder',
+      description: 'Reach out for a plan review; offer spouse/family packages.',
+      dueDate: plusDays(date, 1095),
+      priority: 'low',
+    }],
+  },
+]
 
 export function findMilestone(matterType: string, milestoneId: string): MilestoneDef | undefined {
   return (MILESTONES[matterType] || []).find((m) => m.id === milestoneId)

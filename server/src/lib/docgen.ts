@@ -3,7 +3,7 @@
 // placeholders; every document is stamped for attorney review. The generators mirror
 // the templates in .claude/skills/*/templates/.
 
-import type { DebtIntakeData, ExpunctionIntakeData, ExpunctionArrest, DivorceIntakeData } from './legalTriage.js'
+import type { DebtIntakeData, ExpunctionIntakeData, ExpunctionArrest, DivorceIntakeData, EstateIntakeData } from './legalTriage.js'
 
 export interface Firm {
   attorneyName?: string
@@ -519,6 +519,189 @@ SIGNED on \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_, 20\\_\\_.
 }
 
 // ---------------------------------------------------------------------------
+// Estate package
+
+const SIG_LINE = '\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_'
+
+function residuaryArticle(data: EstateIntakeData): string {
+  const spouse = ph(data.spouseName, 'SPOUSE NAME')
+  if (data.residuaryPlan === 'spouse-then-children') {
+    return `I give all the rest, residue, and remainder of my estate, of every kind and wherever situated, to my spouse, ${spouse}, if my spouse survives me by thirty (30) days. If my spouse does not so survive me, I give my residuary estate to my descendants who survive me, per stirpes.`
+  }
+  if (data.residuaryPlan === 'children-equally') {
+    return `I give all the rest, residue, and remainder of my estate, of every kind and wherever situated, to my children who survive me, in equal shares, provided that the share of any deceased child leaving descendants who survive me shall pass to that child's descendants, per stirpes.`
+  }
+  return `[CUSTOM RESIDUARY PLAN — DRAFTED BY ATTORNEY: ${data.residuaryOther || 'see intake notes'}]`
+}
+
+export function estateWill(data: EstateIntakeData, clientName: string, _firm: Firm): GeneratedDoc {
+  const trustAge = data.trustAge || 25
+  const minors = data.children.filter((c) => c.minor)
+  const childList = data.children.length > 0
+    ? data.children.map((c) => `${c.name}${c.minor ? ' (minor)' : ''}`).join('; ')
+    : 'none'
+  const familyRecital = data.maritalStatus === 'married'
+    ? `I am married to ${ph(data.spouseName, 'SPOUSE NAME')}. My children are: ${childList}.`
+    : `I am not married. My children are: ${childList}.`
+
+  const guardianArticle = minors.length > 0 ? `
+
+## ARTICLE ${'V'}I — GUARDIAN OF MINOR CHILDREN
+
+If at my death any child of mine is a minor and has no surviving parent, I appoint ${ph(data.guardianName, 'GUARDIAN NAME')} as guardian of the person and estate of each such minor child, to serve without bond. If that person fails or ceases to serve, I appoint [ALTERNATE GUARDIAN] to serve in the same capacity, without bond.` : ''
+
+  return {
+    title: `Last Will and Testament — ${clientName}`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Execution: client + 2 disinterested witnesses (14+, NOT beneficiaries) + notary for the self-proving affidavit, all present together. No beneficiaries in the room during the ceremony.*
+
+# LAST WILL AND TESTAMENT OF ${clientName.toUpperCase()}
+
+I, ${clientName}, a resident of ${ph(data.homesteadCounty, 'COUNTY')} County, Texas, being of sound mind and disposing memory and over eighteen years of age, declare this to be my Last Will and Testament, and I revoke all wills and codicils I have previously made.
+
+## ARTICLE I — FAMILY
+
+${familyRecital} References in this Will to "my children" include children born to or adopted by me after the date of this Will, and "my descendants" means my children and their descendants.
+
+## ARTICLE II — DEBTS AND EXPENSES
+
+I direct my Executor to pay from my estate my legally enforceable debts, funeral expenses, and expenses of administration, subject to the rights of secured creditors and applicable law. [SPECIFIC GIFTS, IF ANY: ______]
+
+## ARTICLE III — RESIDUARY ESTATE
+
+${residuaryArticle(data)}
+
+## ARTICLE IV — CONTINGENT TRUST FOR YOUNG BENEFICIARIES
+
+If any beneficiary under this Will is under ${trustAge} years of age when a distribution would otherwise be made, that beneficiary's share shall be held by my Executor (or a trustee my Executor appoints) in trust for the beneficiary's health, education, maintenance, and support until the beneficiary reaches ${trustAge}, at which time the remaining trust property shall be distributed outright. The trustee shall serve without bond and shall have the powers granted trustees under the Texas Trust Code.
+
+## ARTICLE V — INDEPENDENT EXECUTOR
+
+I appoint ${data.executorName} as Independent Executor of this Will. If ${data.executorName} fails or ceases to serve, I appoint ${ph(data.executorAltName, 'ALTERNATE EXECUTOR')} as successor Independent Executor. My Executor shall serve **without bond**, and no action shall be had in the probate court in relation to the settlement of my estate other than the probating and recording of this Will and the return of any required inventory, appraisement, and list of claims, as provided by Chapter 401 of the Texas Estates Code (independent administration).
+${guardianArticle}
+
+## SIGNATURE
+
+IN WITNESS WHEREOF, I sign this Will on this \\_\\_\\_ day of \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_, 20\\_\\_, in the presence of the witnesses named below.
+
+${SIG_LINE}  \n${clientName}, Testator
+
+## ATTESTATION
+
+The foregoing instrument was signed, published, and declared by ${clientName}, Testator, to be the Testator's Last Will and Testament in our presence, and we, at the Testator's request and in the Testator's presence and in the presence of each other, sign our names as witnesses. Each of us is over fourteen years of age and takes nothing under this Will.
+
+${SIG_LINE} Witness — Address: ${SIG_LINE}
+
+${SIG_LINE} Witness — Address: ${SIG_LINE}
+
+## SELF-PROVING AFFIDAVIT (Tex. Estates Code §§ 251.101–.107)
+
+STATE OF TEXAS / COUNTY OF ${(data.homesteadCounty || '[COUNTY]').toUpperCase()}
+
+Before me, the undersigned authority, on this day personally appeared ${clientName}, [WITNESS 1], and [WITNESS 2], known to me to be the Testator and the witnesses whose names are subscribed to the foregoing instrument, and, all being duly sworn, the Testator declared to me and to the witnesses that the instrument is the Testator's Last Will and Testament and that the Testator willingly made it as the Testator's free act and deed; and the witnesses each declared to me that they signed as witnesses at the Testator's request, in the Testator's presence and in each other's presence, that the Testator was at that time eighteen years of age or older, of sound mind, and under no constraint or undue influence.
+
+${SIG_LINE} ${clientName}, Testator
+
+${SIG_LINE} Witness   ${SIG_LINE} Witness
+
+SUBSCRIBED AND SWORN TO before me by the Testator and witnesses on \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_, 20\\_\\_.
+
+${SIG_LINE}  \nNotary Public, State of Texas
+
+*(Pinpoint-check the current § 251.104 affidavit form before the signing ceremony.)*
+`,
+  }
+}
+
+export function estateDurablePOA(data: EstateIntakeData, clientName: string, _firm: Firm): GeneratedDoc {
+  const springing = data.poaEffective === 'incapacity'
+  return {
+    title: `Statutory Durable Power of Attorney — ${clientName}`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Based on the statutory form, Tex. Estates Code § 752.051 — regenerate from the CURRENT statutory text before the signing ceremony; the legislature amends it periodically. Notarization required.*
+
+# STATUTORY DURABLE POWER OF ATTORNEY
+
+**NOTICE:** THE POWERS GRANTED BY THIS DOCUMENT ARE BROAD AND SWEEPING. THEY ARE EXPLAINED IN THE DURABLE POWER OF ATTORNEY ACT, SUBTITLE P, TITLE 2, TEXAS ESTATES CODE. IF YOU HAVE ANY QUESTIONS ABOUT THESE POWERS, OBTAIN COMPETENT LEGAL ADVICE.
+
+I, ${clientName}, of ${ph(data.homesteadCounty, 'COUNTY')} County, Texas, appoint **${data.financialAgent}** as my agent (attorney-in-fact) to act for me in any lawful way with respect to all of the following powers (initialed by me):
+
+\\_\\_\\_ (A) Real property transactions — \\_\\_\\_ (B) Tangible personal property transactions — \\_\\_\\_ (C) Stock and bond transactions — \\_\\_\\_ (D) Commodity and option transactions — \\_\\_\\_ (E) Banking and other financial institution transactions — \\_\\_\\_ (F) Business operating transactions — \\_\\_\\_ (G) Insurance and annuity transactions — \\_\\_\\_ (H) Estate, trust, and other beneficiary transactions — \\_\\_\\_ (I) Claims and litigation — \\_\\_\\_ (J) Personal and family maintenance — \\_\\_\\_ (K) Benefits from social security, Medicare, Medicaid, or other governmental programs or civil or military service — \\_\\_\\_ (L) Retirement plan transactions — \\_\\_\\_ (M) Tax matters — \\_\\_\\_ (N) ALL OF THE POWERS LISTED ABOVE (initialing (N) is the equivalent of initialing each)
+
+**Successor agent.** If my agent is unable or unwilling to act, I appoint ${ph(data.financialAgentAlt, 'ALTERNATE AGENT')} as successor agent.
+
+**Effectiveness.** ${springing
+      ? 'THIS POWER OF ATTORNEY BECOMES EFFECTIVE ON MY DISABILITY OR INCAPACITY, as certified in writing by a physician.'
+      : 'THIS POWER OF ATTORNEY IS EFFECTIVE IMMEDIATELY AND IS NOT AFFECTED BY MY SUBSEQUENT DISABILITY OR INCAPACITY.'}
+
+**Special instructions.** [NONE / ______]
+
+Signed on \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_, 20\\_\\_.
+
+${SIG_LINE}  \n${clientName}, Principal
+
+STATE OF TEXAS / COUNTY OF \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_ — Acknowledged before me on \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_, 20\\_\\_.
+
+${SIG_LINE}  \nNotary Public, State of Texas
+`,
+  }
+}
+
+export function estateMedicalPOA(data: EstateIntakeData, clientName: string, _firm: Firm): GeneratedDoc {
+  return {
+    title: `Medical Power of Attorney — ${clientName}`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Use the CURRENT statutory form and required disclosure statement (Tex. Health & Safety Code ch. 166, subch. D) at the signing — this draft captures the client's choices for merge into that form. Execution: two qualified witnesses OR notary, per the current statute.*
+
+# MEDICAL POWER OF ATTORNEY — DESIGNATION OF HEALTH CARE AGENT
+
+I, ${clientName}, appoint **${data.medicalAgent}** as my agent to make any and all health care decisions for me, except to the extent I state otherwise in this document. This medical power of attorney takes effect if I become unable to make my own health care decisions and this fact is certified in writing by my physician.
+
+**Alternate agent.** If my agent is unwilling or unable to act, I appoint ${ph(data.medicalAgentAlt, 'ALTERNATE MEDICAL AGENT')} as alternate.
+
+**Limitations on my agent's authority:** [NONE / ______]
+
+**Disclosure statement.** I have read and understood the information contained in the disclosure statement required by Texas Health & Safety Code § 166.163. *(Attach the current statutory disclosure.)*
+
+Signed on \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_, 20\\_\\_, in \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_ County, Texas.
+
+${SIG_LINE}  \n${clientName}, Principal
+
+**[Witnesses or notary block per current § 166.154 — two witnesses (Witness 1 subject to the qualification restrictions) OR acknowledgment before a notary.]**
+`,
+  }
+}
+
+export function estateDirective(_data: EstateIntakeData, clientName: string, _firm: Firm): GeneratedDoc {
+  return {
+    title: `Directive to Physicians — ${clientName}`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Use the CURRENT statutory form (Tex. Health & Safety Code § 166.033) at the signing — this draft captures the client's choices for merge into that form.*
+
+# DIRECTIVE TO PHYSICIANS AND FAMILY OR SURROGATES
+
+I, ${clientName}, recognize that the best health care is based upon a partnership of trust and communication with my physician. If I am unable to make my own wishes known, this directive states my treatment choices.
+
+**If I have a TERMINAL condition** from which I am expected to die within six months even with life-sustaining treatment:
+- [ ] I request that all treatments other than those needed to keep me comfortable be discontinued or withheld, and that I be allowed to die as gently as possible; **OR**
+- [ ] I request that I be kept alive in this terminal condition using available life-sustaining treatment.
+
+**If I have an IRREVERSIBLE condition** so that I cannot care for myself or make decisions for myself and am expected to die without life-sustaining treatment:
+- [ ] I request that all treatments other than those needed to keep me comfortable be discontinued or withheld, and that I be allowed to die as gently as possible; **OR**
+- [ ] I request that I be kept alive in this irreversible condition using available life-sustaining treatment.
+
+**Additional requests:** [______]
+
+Signed on \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_, 20\\_\\_, in \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_ County, Texas.
+
+${SIG_LINE}  \n${clientName}
+
+**[Two competent adult witnesses (Witness 1 subject to § 166.003 qualification restrictions) OR notary acknowledgment, per the current statute.]**
+`,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Engagement letters (limited scope, per product)
 
 const productScopes: Record<string, { name: string; scope: string; excluded: string }> = {
@@ -531,6 +714,11 @@ const productScopes: Record<string, { name: string; scope: string; excluded: str
     name: 'Expunction Flat Fee',
     scope: 'record-verified eligibility screening for the arrests identified at intake; preparation and filing of one petition for expunction per quoted arrest; and attendance at one unopposed hearing or submission per petition',
     excluded: 'contested hearings (State or agency opposition), appeals, nondisclosure petitions unless separately quoted, and disputes with private background-check vendors beyond one round of order-based dispute letters',
+  },
+  'estate-package': {
+    name: 'Simple Estate Package Flat Fee',
+    scope: 'preparation of a simple will, statutory durable power of attorney, medical power of attorney, and directive to physicians reflecting the choices you made at intake; one signing ceremony at our office with witnesses and notary arranged; and a closing letter with storage and review guidance',
+    excluded: 'trust-based planning, estate-tax planning, special-needs or Medicaid planning, business succession, out-of-state property planning, probate administration, and any revision requested more than 30 days after the signing ceremony — each available separately',
   },
   'uncontested-divorce': {
     name: 'Uncontested Divorce — Tier 1 Flat Fee',
@@ -601,6 +789,13 @@ export const DOC_TYPES: Record<string, Array<{ id: string; label: string }>> = {
     { id: 'decree', label: 'Agreed final decree' },
     { id: 'engagement-letter', label: 'Engagement letter' },
   ],
+  'estate-package': [
+    { id: 'will', label: 'Simple will (self-proved)' },
+    { id: 'durable-poa', label: 'Statutory durable POA' },
+    { id: 'medical-poa', label: 'Medical POA' },
+    { id: 'directive', label: 'Directive to physicians' },
+    { id: 'engagement-letter', label: 'Engagement letter' },
+  ],
 }
 
 export function generateDocument(
@@ -628,6 +823,13 @@ export function generateDocument(
     if (docType === 'petition') return divorcePetition(d, clientName, firm)
     if (docType === 'waiver') return divorceWaiver(d, clientName, firm)
     if (docType === 'decree') return divorceDecree(d, clientName, firm)
+  }
+  if (matterType === 'estate-package') {
+    const d = data as unknown as EstateIntakeData
+    if (docType === 'will') return estateWill(d, clientName, firm)
+    if (docType === 'durable-poa') return estateDurablePOA(d, clientName, firm)
+    if (docType === 'medical-poa') return estateMedicalPOA(d, clientName, firm)
+    if (docType === 'directive') return estateDirective(d, clientName, firm)
   }
   throw new Error(`Unknown document type "${docType}" for matter "${matterType}"`)
 }
