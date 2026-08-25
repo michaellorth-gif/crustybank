@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { CheckSquare, Target, Calendar, FileText, TrendingUp, Clock } from 'lucide-react'
+import { CheckSquare, Target, Calendar, FileText, TrendingUp, Clock, Scale } from 'lucide-react'
 import { api } from '../services/api'
 import { useAuthStore } from '../hooks/useAuthStore'
 
@@ -28,6 +28,21 @@ export default function Dashboard() {
     queryFn: async () => {
       const response = await api.get('/tasks?limit=5')
       return response.data
+    },
+  })
+
+  const { data: legalDeadlines } = useQuery({
+    queryKey: ['legal-deadlines'],
+    queryFn: async () => {
+      const response = await api.get('/intakes/deadlines')
+      return response.data as Array<{
+        intakeId: string
+        clientName: string
+        matterType: string
+        label: string
+        date: string
+        daysLeft: number
+      }>
     },
   })
 
@@ -71,6 +86,44 @@ export default function Dashboard() {
           link="/notes"
         />
       </div>
+
+      {/* Legal Deadlines */}
+      {legalDeadlines && legalDeadlines.length > 0 && (
+        <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+              <Scale size={18} className="text-primary-600" /> Legal Deadlines
+            </h2>
+            <Link to="/intakes" className="text-sm text-primary-600 hover:underline">
+              View matters
+            </Link>
+          </div>
+          <ul className="space-y-2">
+            {legalDeadlines.slice(0, 6).map((d) => (
+              <li key={`${d.intakeId}-${d.label}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <span
+                  className={`px-2 py-1 rounded text-xs font-bold ${
+                    d.daysLeft < 0 ? 'bg-red-600 text-white'
+                      : d.daysLeft <= 5 ? 'bg-red-100 text-red-700'
+                      : d.daysLeft <= 14 ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
+                  {d.daysLeft < 0 ? `${-d.daysLeft}d PAST` : `${d.daysLeft}d`}
+                </span>
+                <div>
+                  <p className="text-gray-800 font-medium text-sm">
+                    {d.label} — {d.clientName}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {d.date} · {d.matterType.replace(/-/g, ' ')}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Tasks */}

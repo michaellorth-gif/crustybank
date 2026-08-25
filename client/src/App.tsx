@@ -12,6 +12,8 @@ import Register from './pages/Register'
 import Teams from './pages/Teams'
 import Documents from './pages/Documents'
 import Workflows from './pages/Workflows'
+import LegalIntakes from './pages/LegalIntakes'
+import PublicIntake from './pages/PublicIntake'
 import Emails from './pages/Emails'
 import Admin from './pages/Admin'
 
@@ -25,6 +27,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/intake" element={<PublicIntake />} />
       <Route
         path="/"
         element={
@@ -42,6 +45,7 @@ function App() {
         <Route path="teams" element={<Teams />} />
         <Route path="documents" element={<Documents />} />
         <Route path="workflows" element={<Workflows />} />
+        <Route path="intakes" element={<LegalIntakes />} />
         <Route path="emails" element={<Emails />} />
         <Route path="admin" element={<Admin />} />
       </Route>

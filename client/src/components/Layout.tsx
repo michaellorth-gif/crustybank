@@ -14,6 +14,7 @@ import {
   Zap,
   Mail,
   Shield,
+  Scale,
 } from 'lucide-react'
 
 const navItems = [
@@ -29,6 +30,7 @@ const adminNavItems = [
   { path: '/teams', icon: Users, label: 'Teams' },
   { path: '/documents', icon: FolderOpen, label: 'Documents' },
   { path: '/workflows', icon: Zap, label: 'Automation' },
+  { path: '/intakes', icon: Scale, label: 'Legal Intakes' },
   { path: '/emails', icon: Mail, label: 'Email Assistant' },
   { path: '/admin', icon: Shield, label: 'Admin', adminOnly: true },
 ]

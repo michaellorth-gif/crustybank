@@ -4,8 +4,28 @@ import { db } from '../db/index.js'
 import { documents, documentTemplates, teamMembers, teams } from '../db/schema.js'
 import { eq, and } from 'drizzle-orm'
 import { AuthRequest } from '../middleware/auth.js'
+import { markdownToDocx, docxFilename } from '../lib/mdToDocx.js'
 
 const router = Router()
+
+// Export a document's markdown content as a Word (.docx) file
+router.get('/:id/docx', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!
+    const doc = await db.select().from(documents).where(eq(documents.id, req.params.id)).get()
+    if (!doc) return res.status(404).json({ message: 'Document not found' })
+    if (doc.userId !== userId) return res.status(403).json({ message: 'Access denied' })
+    if (!doc.content) return res.status(400).json({ message: 'Document has no content to export' })
+
+    const buffer = await markdownToDocx(doc.content, doc.title)
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    res.setHeader('Content-Disposition', `attachment; filename="${docxFilename(doc.title)}"`)
+    res.send(buffer)
+  } catch (error) {
+    console.error('Error exporting document to DOCX:', error)
+    res.status(500).json({ message: 'Failed to export document' })
+  }
+})
 
 // Get all documents for the current user (personal + team)
 router.get('/', async (req: AuthRequest, res: Response) => {

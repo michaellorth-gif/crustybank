@@ -180,6 +180,38 @@ export const sharedItems = sqliteTable('shared_items', {
   createdAt: text('created_at').$defaultFn(() => new Date().toISOString()).notNull(),
 })
 
+// Legal intake forms feeding the automated practice-area workflows
+// (.claude/skills/debt-defense, expunction, uncontested-divorce)
+export const legalIntakes = sqliteTable('legal_intakes', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  matterType: text('matter_type').notNull(), // 'debt-defense' | 'expunction' | 'uncontested-divorce'
+  clientName: text('client_name').notNull(),
+  clientEmail: text('client_email'),
+  clientPhone: text('client_phone'),
+  status: text('status').default('new').notNull(), // 'new' | 'in-review' | 'accepted' | 'declined'
+  stage: text('stage').default('intake').notNull(), // matter pipeline stage, see lib/matterPipeline.ts
+  source: text('source').default('internal').notNull(), // 'internal' | 'public'
+  data: text('data', { mode: 'json' }).$type<Record<string, unknown>>().notNull(),
+  triage: text('triage', { mode: 'json' }).$type<Record<string, unknown>>(),
+  keyDates: text('key_dates', { mode: 'json' }).$type<Record<string, { date: string; taskIds?: string[] }>>(),
+  reviewNotes: text('review_notes'),
+  relatedTaskId: text('related_task_id').references(() => tasks.id, { onDelete: 'set null' }),
+  createdAt: text('created_at').$defaultFn(() => new Date().toISOString()).notNull(),
+  updatedAt: text('updated_at').$defaultFn(() => new Date().toISOString()).notNull(),
+})
+
+// Firm identity used in generated signature blocks / engagement letters
+export const firmSettings = sqliteTable('firm_settings', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  data: text('data', { mode: 'json' }).$type<Record<string, string>>().notNull(),
+  updatedAt: text('updated_at').$defaultFn(() => new Date().toISOString()).notNull(),
+})
+
+export type LegalIntake = typeof legalIntakes.$inferSelect
+export type NewLegalIntake = typeof legalIntakes.$inferInsert
+export type FirmSettings = typeof firmSettings.$inferSelect
+
 export type Team = typeof teams.$inferSelect
 export type NewTeam = typeof teams.$inferInsert
 export type TeamMember = typeof teamMembers.$inferSelect
