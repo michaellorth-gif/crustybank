@@ -165,7 +165,18 @@ export default function EstateForm({
         {residuaryPlan === 'other' && (
           <TextField label="Describe the plan" value={residuaryOther} onChange={setResiduaryOther} />
         )}
-        <TextField label="Hold inheritances in trust until age" type="number" value={trustAge} onChange={setTrustAge} />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Hold inheritances in trust until age</label>
+          <input
+            type="number"
+            min={18}
+            max={40}
+            value={trustAge}
+            onChange={(e) => setTrustAge(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+          />
+          <p className="text-xs text-gray-500 mt-1">Between 18 and 40 — 25 is typical</p>
+        </div>
       </Section>
 
       <Section title="Screening (honest answers route the case correctly)">

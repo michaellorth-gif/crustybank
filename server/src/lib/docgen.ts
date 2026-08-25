@@ -4,6 +4,17 @@
 // the templates in .claude/skills/*/templates/.
 
 import type { DebtIntakeData, ExpunctionIntakeData, ExpunctionArrest, DivorceIntakeData, EstateIntakeData } from './legalTriage.js'
+import { classifyPlaintiff } from './legalTriage.js'
+
+const YEAR_MS = 365.25 * 24 * 3600 * 1000
+
+// Limitations must be measured at FILING, not at document-generation time.
+// Service date is a conservative proxy (filing precedes service); without it we
+// cannot responsibly assert the bar in an outgoing letter.
+function limitationsLikelyAtFiling(data: DebtIntakeData): boolean {
+  if (!data.lastPaymentDate || !data.serviceDate) return false
+  return new Date(data.serviceDate).getTime() - new Date(data.lastPaymentDate).getTime() >= 4 * YEAR_MS
+}
 
 export interface Firm {
   attorneyName?: string
@@ -66,10 +77,12 @@ function debtCaption(data: DebtIntakeData, clientName: string): string {
 
 export function debtAnswer(data: DebtIntakeData, clientName: string, firm: Firm): GeneratedDoc {
   const isJP = data.courtType === 'justice'
-  const assignee = !!data.originalCreditor &&
-    !data.plaintiffName.toLowerCase().includes((data.originalCreditor || '').toLowerCase().split(' ')[0])
+  const { assignee } = classifyPlaintiff(data.plaintiffName, data.originalCreditor)
+  // Pleading limitations is low-cost, so include it on a wider (3.5-year) screen
+  // measured at service when known — the review note tells Mike to verify accrual.
+  const measureTo = data.serviceDate ? new Date(data.serviceDate).getTime() : Date.now()
   const timeBarredHint = !!data.lastPaymentDate &&
-    (Date.now() - new Date(data.lastPaymentDate).getTime()) / (365.25 * 24 * 3600 * 1000) >= 3.5
+    (measureTo - new Date(data.lastPaymentDate).getTime()) >= 3.5 * YEAR_MS
 
   const sections: string[] = []
   let n = 1
@@ -187,8 +200,9 @@ ${signatureBlock(firm, 'Defendant')}
 }
 
 export function debtSettlementLetter(data: DebtIntakeData, clientName: string, firm: Firm): GeneratedDoc {
-  const timeBarredHint = !!data.lastPaymentDate &&
-    (Date.now() - new Date(data.lastPaymentDate).getTime()) / (365.25 * 24 * 3600 * 1000) >= 4
+  // Only assert the limitations bar to opposing counsel when it held AT FILING
+  // (service-date proxy) — never from generation-time arithmetic.
+  const timeBarredHint = limitationsLikelyAtFiling(data)
   return {
     title: `Settlement Offer — ${clientName} adv. ${data.plaintiffName}`,
     category: 'legal-draft',
@@ -236,10 +250,17 @@ function arrestBlock(a: ExpunctionArrest, i: number): string {
   return `**Arrest #${i + 1}.** Petitioner was arrested on ${a.arrestDate} in ${a.county} County, Texas, by ${ph(a.agency, 'ARRESTING AGENCY')}, for the alleged offense of ${a.offense} (${a.level.replace('class', 'Class ')}). Disposition: ${a.disposition.replace(/-/g, ' ')}${a.dispositionDate ? ` on ${a.dispositionDate}` : ''}.`
 }
 
+const EXPUNGEABLE_DISPOSITIONS = new Set(['acquitted', 'never-charged', 'dismissed', 'diversion-completed'])
+
 export function expunctionPetition(data: ExpunctionIntakeData, clientName: string, firm: Firm): GeneratedDoc {
-  // One petition per arrest is standard practice; this draft covers the FIRST
-  // screened-eligible arrest and notes any others for separate petitions.
-  const arrests = data.arrests
+  // One petition per arrest is standard practice; this draft covers the first
+  // arrest whose reported disposition screens as expungeable, with the others
+  // noted for separate petitions (or nondisclosure screening).
+  const primaryIndex = data.arrests.findIndex((a) => EXPUNGEABLE_DISPOSITIONS.has(a.disposition))
+  const noneEligible = primaryIndex === -1
+  const arrests = noneEligible
+    ? data.arrests
+    : [data.arrests[primaryIndex], ...data.arrests.filter((_, i) => i !== primaryIndex)]
   const agencyRows = [
     'Texas Department of Public Safety, Crime Records Division',
     `${ph(arrests[0]?.agency, 'ARRESTING AGENCY')}`,
@@ -256,7 +277,7 @@ export function expunctionPetition(data: ExpunctionIntakeData, clientName: strin
   return {
     title: `Petition for Expunction — ${clientName}`,
     category: 'legal-draft',
-    content: `${REVIEW_BANNER}*Verify the eligibility route against the certified criminal history and pinpoint-check the ch. 55A article before filing. ${arrests.length > 1 ? `NOTE: intake lists ${arrests.length} arrests — file a separate petition per arrest; this draft covers Arrest #1.` : ''}*
+    content: `${REVIEW_BANNER}*Verify the eligibility route against the certified criminal history and pinpoint-check the ch. 55A article before filing. ${noneEligible ? '⚠ NO ARREST ON THIS INTAKE SCREENS AS EXPUNGEABLE — this draft is a shell only; re-screen before any filing.' : ''} ${arrests.length > 1 ? `NOTE: intake lists ${arrests.length} arrests — file a separate petition per arrest; this draft covers the first screened-expungeable arrest (${arrests[0].arrestDate}, ${arrests[0].offense}).` : ''}*
 
 **CAUSE NO. \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_**
 

@@ -2,7 +2,7 @@ import { Router, Response } from 'express'
 import { z } from 'zod'
 import { db } from '../db/index.js'
 import { legalIntakes, tasks, documents, firmSettings } from '../db/schema.js'
-import { eq, desc, and, like } from 'drizzle-orm'
+import { eq, desc, and, like, inArray } from 'drizzle-orm'
 import { AuthRequest } from '../middleware/auth.js'
 import {
   triageDebtDefense,
@@ -274,6 +274,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
 
     let triage = intake.triage
     let data = intake.data
+    let relatedTaskId = intake.relatedTaskId
     if (updates.data) {
       // Re-validate the merged payload against the matter type's schema, then re-triage
       const merged = { ...intake.data, ...updates.data }
@@ -283,6 +284,31 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
         : divorceDataSchema
       data = schema.parse(merged) as Record<string, unknown>
       triage = runTriage(intake.matterType, data)
+
+      // Keep the answer-deadline task in sync with the recomputed triage —
+      // a corrected service date must move the calendared deadline with it.
+      if (intake.matterType === 'debt-defense') {
+        const deadline = (triage as { answerDeadline?: { deadline: string; internalDeadline: string; basis: string; caveat: string } }).answerDeadline
+        if (deadline) {
+          const taskValues = {
+            title: `ANSWER DUE ${deadline.deadline} — ${intake.clientName} (${data.plaintiffName})`,
+            description: `Debt-defense answer deadline. Internal deadline ${deadline.internalDeadline} (3 business days early). ${deadline.basis}. ${deadline.caveat}`,
+            priority: 'high',
+            dueDate: deadline.internalDeadline,
+          }
+          const existing = relatedTaskId
+            ? await db.select().from(tasks).where(eq(tasks.id, relatedTaskId)).get()
+            : undefined
+          if (existing) {
+            await db.update(tasks)
+              .set({ ...taskValues, updatedAt: new Date().toISOString() })
+              .where(eq(tasks.id, existing.id))
+          } else {
+            const [task] = await db.insert(tasks).values({ userId, ...taskValues }).returning()
+            relatedTaskId = task.id
+          }
+        }
+      }
     }
 
     if (updates.stage && !(STAGES[intake.matterType] || []).includes(updates.stage)) {
@@ -297,6 +323,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
         reviewNotes: updates.reviewNotes ?? intake.reviewNotes,
         data,
         triage,
+        relatedTaskId,
         updatedAt: new Date().toISOString(),
       })
       .where(eq(legalIntakes.id, req.params.id))
@@ -393,22 +420,31 @@ router.post('/:id/milestone', async (req: AuthRequest, res: Response) => {
     const keyDates = { ...(intake.keyDates || {}) }
     const warning = def.warn ? def.warn(date, intake.data, keyDates) : null
 
-    // Create the downstream tasks only on first recording of this milestone —
-    // re-recording updates the date without duplicating tasks.
-    let taskIds = keyDates[milestone]?.taskIds || []
+    // A warned milestone (e.g. waiver signed before filing) is NOT recorded —
+    // the defect must be cured and the milestone re-submitted with a valid date.
+    if (warning) {
+      return res.json({ intake, createdTasks: [], warning })
+    }
+
+    // Re-recording a milestone replaces its previously created tasks so their
+    // due dates track the new date (e.g. a continued trial setting).
+    const oldTaskIds = keyDates[milestone]?.taskIds || []
+    if (oldTaskIds.length > 0) {
+      await db.delete(tasks).where(and(inArray(tasks.id, oldTaskIds), eq(tasks.userId, userId)))
+    }
+
+    const taskIds: string[] = []
     const createdTasks = []
-    if (taskIds.length === 0 && !warning) {
-      for (const t of def.tasks(date, intake.data)) {
-        const [task] = await db.insert(tasks).values({
-          userId,
-          title: `${t.title} — ${intake.clientName}`,
-          description: t.description,
-          priority: t.priority,
-          dueDate: t.dueDate,
-        }).returning()
-        taskIds.push(task.id)
-        createdTasks.push(task)
-      }
+    for (const t of def.tasks(date, intake.data)) {
+      const [task] = await db.insert(tasks).values({
+        userId,
+        title: `${t.title} — ${intake.clientName}`,
+        description: t.description,
+        priority: t.priority,
+        dueDate: t.dueDate,
+      }).returning()
+      taskIds.push(task.id)
+      createdTasks.push(task)
     }
 
     keyDates[milestone] = { date, taskIds }
@@ -416,13 +452,13 @@ router.post('/:id/milestone', async (req: AuthRequest, res: Response) => {
       .update(legalIntakes)
       .set({
         keyDates,
-        stage: !warning && def.advanceStageTo ? def.advanceStageTo : intake.stage,
+        stage: def.advanceStageTo ?? intake.stage,
         updatedAt: new Date().toISOString(),
       })
       .where(eq(legalIntakes.id, req.params.id))
       .returning()
 
-    res.json({ intake: updated, createdTasks, warning })
+    res.json({ intake: updated, createdTasks, warning: null })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: 'Invalid input', errors: error.errors })

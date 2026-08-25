@@ -30,6 +30,18 @@ function parseISODate(iso: string): Date {
   return new Date(`${iso.slice(0, 10)}T12:00:00Z`)
 }
 
+// "Today" for a Texas practice is the Central-time calendar date, regardless of
+// the server's timezone — using toISOString() would roll a day ahead every
+// evening after 7pm Central and falsely flag deadlines as passed.
+export function texasTodayISO(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now)
+}
+
 function toISODate(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
@@ -84,9 +96,40 @@ export function computeAnswerDeadline(serviceDateISO: string, courtType: DebtCou
   }
 }
 
+// Shared plaintiff classification, used by triage and by the answer generator so
+// the two can never disagree. Comparing full normalized names (not first words)
+// avoids misreading "American Recovery Systems" as "American Express".
+const KNOWN_DEBT_BUYERS =
+  /midland|portfolio recovery|lvnv|jefferson capital|cavalry|crown asset|velocity|absolute resolutions|second round|cascade|unifund|pra group|pra receivables/i
+
+function normalizeEntityName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\b(inc|llc|llp|lp|na|n\.a|corp|corporation|company|co|ltd|usa)\b/g, '')
+    .replace(/[^a-z0-9]/g, '')
+}
+
+export function classifyPlaintiff(plaintiffName: string, originalCreditor?: string): {
+  label: string
+  assignee: boolean
+} {
+  if (KNOWN_DEBT_BUYERS.test(plaintiffName)) {
+    return { label: 'debt buyer (known portfolio purchaser)', assignee: true }
+  }
+  const original = normalizeEntityName(originalCreditor || '')
+  if (!original) {
+    return { label: 'unclassified — confirm against petition', assignee: false }
+  }
+  const plaintiff = normalizeEntityName(plaintiffName)
+  if (plaintiff.includes(original) || original.includes(plaintiff)) {
+    return { label: 'original creditor (apparent)', assignee: false }
+  }
+  return { label: 'likely assignee — plaintiff differs from original creditor', assignee: true }
+}
+
 export function triageDebtDefense(data: DebtIntakeData, now = new Date()): Record<string, unknown> {
   const flags: string[] = []
-  const today = parseISODate(now.toISOString())
+  const today = parseISODate(texasTodayISO(now))
 
   let deadlineInfo: ReturnType<typeof computeAnswerDeadline> | null = null
   let daysRemaining: number | null = null
@@ -106,34 +149,26 @@ export function triageDebtDefense(data: DebtIntakeData, now = new Date()): Recor
     flags.push('Not yet served — deadline clock has not started; monitor and prepare')
   }
 
-  // Limitations screen (4 years, Tex. Civ. Prac. & Rem. Code § 16.004)
+  // Limitations screen (4 years, Tex. Civ. Prac. & Rem. Code § 16.004).
+  // What matters is limitations AT FILING — measure to the service date (a
+  // conservative proxy for the filing date) when we have one, else to today.
   let limitations: string = 'unknown — last payment date not provided'
   if (data.lastPaymentDate) {
-    const yearsSince = (today.getTime() - parseISODate(data.lastPaymentDate).getTime()) / (365.25 * DAY_MS)
+    const measureTo = data.serviceDate ? parseISODate(data.serviceDate) : today
+    const measureLabel = data.serviceDate ? 'at service (filing is earlier — verify)' : 'as of today (filing date unknown)'
+    const yearsSince = (measureTo.getTime() - parseISODate(data.lastPaymentDate).getTime()) / (365.25 * DAY_MS)
     if (yearsSince >= 4) {
-      limitations = 'LIKELY TIME-BARRED — verify accrual from account records (accrual runs from default, not last payment; beware re-aged credit-report dates)'
+      limitations = `LIKELY TIME-BARRED ${measureLabel} — verify accrual from account records (accrual runs from default, not last payment; beware re-aged credit-report dates)`
       flags.push('Limitations defense likely (CPRC § 16.004) — also screen Fin. Code § 392.307 / FDCPA counterclaims')
     } else if (yearsSince >= 3.5) {
-      limitations = 'BORDERLINE — within 6 months of the 4-year bar; pin down the default date'
+      limitations = `BORDERLINE ${measureLabel} — within 6 months of the 4-year bar; pin down the default date`
     } else {
-      limitations = `within limitations (~${yearsSince.toFixed(1)} years since last payment)`
+      limitations = `within limitations (~${yearsSince.toFixed(1)} years from last payment ${measureLabel})`
     }
   }
 
   // Plaintiff classification (drives verified denials + proof attacks)
-  const knownDebtBuyers = /midland|portfolio recovery|lvnv|jefferson capital|cavalry|crown asset|velocity|absolute resolutions|second round|cascade|unifund|pra /i
-  const original = (data.originalCreditor || '').trim().toLowerCase()
-  const plaintiff = data.plaintiffName.trim().toLowerCase()
-  let plaintiffClass: string
-  if (knownDebtBuyers.test(data.plaintiffName)) {
-    plaintiffClass = 'debt buyer (known portfolio purchaser)'
-  } else if (original && plaintiff.includes(original.split(' ')[0])) {
-    plaintiffClass = 'original creditor (apparent)'
-  } else if (original) {
-    plaintiffClass = 'likely assignee — plaintiff differs from original creditor'
-  } else {
-    plaintiffClass = 'unclassified — confirm against petition'
-  }
+  const { label: plaintiffClass, assignee } = classifyPlaintiff(data.plaintiffName, data.originalCreditor)
 
   if (data.priorBankruptcy) flags.push('Bankruptcy history reported — screen for discharge of this debt before anything else')
   if (data.recognizesDebt === 'identity-theft') flags.push('Identity theft claimed — police report + FCRA disputes; plead mistaken identity')
@@ -145,9 +180,7 @@ export function triageDebtDefense(data: DebtIntakeData, now = new Date()): Recor
   const recommendedParagraphs = [
     'General denial (TRCP 92 / 502.6)',
     ...(data.swornPetition ? ['Verified denial of account (TRCP 93(10), 185)'] : []),
-    ...(plaintiffClass.startsWith('debt buyer') || plaintiffClass.startsWith('likely assignee')
-      ? ['Verified denials — standing/capacity/assignment (TRCP 93(1), (2), (8))']
-      : []),
+    ...(assignee ? ['Verified denials — standing/capacity/assignment (TRCP 93(1), (2), (8))'] : []),
     ...(limitations.startsWith('LIKELY') || limitations.startsWith('BORDERLINE') ? ['Limitations (TRCP 94; CPRC § 16.004)'] : []),
     ...(data.recognizesDebt === 'identity-theft' ? ['Mistaken identity / identity theft'] : []),
     'Denial of attorney’s fees and conditions precedent',
@@ -209,7 +242,7 @@ function waitingPeriodEnd(arrestDateISO: string, level: ExpunctionArrest['level'
 }
 
 export function triageExpunction(data: ExpunctionIntakeData, now = new Date()): Record<string, unknown> {
-  const today = parseISODate(now.toISOString())
+  const today = parseISODate(texasTodayISO(now))
 
   const screens = data.arrests.map((arrest, i) => {
     const label = `Arrest #${i + 1} (${arrest.arrestDate}, ${arrest.offense})`

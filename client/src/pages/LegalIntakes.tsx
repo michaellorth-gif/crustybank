@@ -47,6 +47,7 @@ export default function LegalIntakes() {
   const [newIntakeType, setNewIntakeType] = useState<MatterType | null>(null)
   const [filter, setFilter] = useState<MatterType | 'all'>('all')
   const [showFirmSettings, setShowFirmSettings] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   const { data: intakes = [], isLoading } = useQuery({
@@ -66,6 +67,12 @@ export default function LegalIntakes() {
       queryClient.invalidateQueries({ queryKey: ['legal-intakes'] })
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       setNewIntakeType(null)
+      setSubmitError(null)
+    },
+    onError: (err: unknown) => {
+      const resp = (err as { response?: { data?: { message?: string; errors?: Array<{ path?: Array<string | number>; message?: string }> } } }).response
+      const detail = resp?.data?.errors?.map((e) => `${(e.path || []).join('.')}: ${e.message}`).join('; ')
+      setSubmitError(detail ? `${resp?.data?.message || 'Invalid input'} — ${detail}` : resp?.data?.message || 'Failed to save the intake — please try again.')
     },
   })
 
@@ -139,17 +146,20 @@ export default function LegalIntakes() {
             <p className="text-sm text-gray-500 mb-4">
               Submitting runs automated triage. Results are a first pass for attorney review — not a legal determination.
             </p>
+            {submitError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{submitError}</div>
+            )}
             {newIntakeType === 'debt-defense' && (
-              <DebtDefenseForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => setNewIntakeType(null)} isLoading={createIntake.isPending} />
+              <DebtDefenseForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => { setNewIntakeType(null); setSubmitError(null) }} isLoading={createIntake.isPending} />
             )}
             {newIntakeType === 'expunction' && (
-              <ExpunctionForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => setNewIntakeType(null)} isLoading={createIntake.isPending} />
+              <ExpunctionForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => { setNewIntakeType(null); setSubmitError(null) }} isLoading={createIntake.isPending} />
             )}
             {newIntakeType === 'uncontested-divorce' && (
-              <DivorceForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => setNewIntakeType(null)} isLoading={createIntake.isPending} />
+              <DivorceForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => { setNewIntakeType(null); setSubmitError(null) }} isLoading={createIntake.isPending} />
             )}
             {newIntakeType === 'estate-package' && (
-              <EstateForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => setNewIntakeType(null)} isLoading={createIntake.isPending} />
+              <EstateForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => { setNewIntakeType(null); setSubmitError(null) }} isLoading={createIntake.isPending} />
             )}
           </div>
         </div>
@@ -281,11 +291,21 @@ function IntakeCard({
   )
 }
 
+// Days remaining must be computed at render time from the stored deadline date —
+// the triage payload's daysRemaining is a snapshot from submission time.
+function daysUntilDeadline(intake: LegalIntake): number | null {
+  const deadline = (intake.triage?.answerDeadline as { deadline: string } | null | undefined)?.deadline
+  if (!deadline) return null
+  const today = new Date()
+  const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+  return Math.round((new Date(`${deadline}T00:00:00Z`).getTime() - todayUTC) / (24 * 3600 * 1000))
+}
+
 function SummaryStrip({ intakes }: { intakes: LegalIntake[] }) {
   const open = intakes.filter((i) => i.status === 'new' || i.status === 'in-review')
   const urgent = intakes.filter((i) => {
-    const days = i.triage?.daysRemaining as number | null | undefined
-    return typeof days === 'number' && days <= 5 && i.status !== 'declined' && i.stage !== 'closed'
+    const days = daysUntilDeadline(i)
+    return typeof days === 'number' && days <= 5 && i.status !== 'declined' && !['answer-filed', 'discovery', 'settlement', 'trial-prep', 'closed'].includes(i.stage)
   })
   const publicNew = intakes.filter((i) => i.source === 'public' && i.status === 'new')
   const cells = [
@@ -312,7 +332,7 @@ function TriageSummary({ intake }: { intake: LegalIntake }) {
 
   if (intake.matterType === 'debt-defense') {
     const deadline = t.answerDeadline as { deadline: string } | null
-    const days = t.daysRemaining as number | null
+    const days = daysUntilDeadline(intake)
     return (
       <p className="text-sm text-gray-600 mt-1">
         {deadline ? (

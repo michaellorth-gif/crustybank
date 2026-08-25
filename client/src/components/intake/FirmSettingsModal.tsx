@@ -15,6 +15,7 @@ interface FirmData {
 export default function FirmSettingsModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
   const [form, setForm] = useState<FirmData | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const { data: saved } = useQuery({
     queryKey: ['firm-settings'],
@@ -30,6 +31,10 @@ export default function FirmSettingsModal({ onClose }: { onClose: () => void }) 
       queryClient.invalidateQueries({ queryKey: ['firm-settings'] })
       onClose()
     },
+    onError: (err: unknown) => {
+      const message = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+      setSaveError(message || 'Saving failed — please try again.')
+    },
   })
 
   return (
@@ -37,6 +42,7 @@ export default function FirmSettingsModal({ onClose }: { onClose: () => void }) 
       <div className="bg-white rounded-xl p-6 w-full max-w-md">
         <h2 className="text-xl font-semibold mb-1">Firm Settings</h2>
         <p className="text-sm text-gray-500 mb-4">Used in signature blocks of generated documents. Empty fields stay as [BRACKETED] placeholders.</p>
+        {saveError && <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{saveError}</div>}
         <form
           onSubmit={(e) => { e.preventDefault(); save.mutate(current) }}
           className="space-y-3"

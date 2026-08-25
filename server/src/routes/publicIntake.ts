@@ -11,20 +11,32 @@ import { createIntakeRecord, createIntakeSchema } from './intakes.js'
 
 const router = Router()
 
-// Light in-memory rate limit: max submissions per IP per hour.
+// Light in-memory rate limit: max submissions per IP per hour, plus a global
+// hourly ceiling as a backstop against key-spoofing or distributed abuse.
 const RATE_LIMIT = 10
+const GLOBAL_HOURLY_LIMIT = 100
 const WINDOW_MS = 60 * 60 * 1000
 const submissions = new Map<string, number[]>()
+let globalTimestamps: number[] = []
+
+function pruneStale(now: number): void {
+  globalTimestamps = globalTimestamps.filter((t) => now - t < WINDOW_MS)
+  for (const [key, times] of submissions) {
+    const recent = times.filter((t) => now - t < WINDOW_MS)
+    if (recent.length === 0) submissions.delete(key)
+    else submissions.set(key, recent)
+  }
+}
 
 function rateLimited(ip: string): boolean {
   const now = Date.now()
-  const recent = (submissions.get(ip) || []).filter((t) => now - t < WINDOW_MS)
-  if (recent.length >= RATE_LIMIT) {
-    submissions.set(ip, recent)
-    return true
-  }
+  pruneStale(now)
+  if (globalTimestamps.length >= GLOBAL_HOURLY_LIMIT) return true
+  const recent = submissions.get(ip) || []
+  if (recent.length >= RATE_LIMIT) return true
   recent.push(now)
   submissions.set(ip, recent)
+  globalTimestamps.push(now)
   return false
 }
 
@@ -44,7 +56,11 @@ const publicSchema = z.intersection(
 
 router.post('/intake', async (req: Request, res: Response) => {
   try {
-    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown'
+    // Key on the socket address, NOT X-Forwarded-For — no trust proxy is
+    // configured, so the header is client-controlled and trivially spoofed.
+    // (If this app is ever deployed behind a reverse proxy, set Express
+    // 'trust proxy' and switch to req.ip.)
+    const ip = req.socket.remoteAddress || 'unknown'
     if (rateLimited(ip)) {
       return res.status(429).json({ message: 'Too many submissions — please try again later or call the office.' })
     }

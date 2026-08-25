@@ -26,8 +26,13 @@ interface IntakeLike {
 export default function MatterPanel({ intake }: { intake: IntakeLike }) {
   const queryClient = useQueryClient()
   const [milestoneDates, setMilestoneDates] = useState<Record<string, string>>({})
+  const [editingMilestones, setEditingMilestones] = useState<Record<string, boolean>>({})
   const [warning, setWarning] = useState<string | null>(null)
+  const [panelError, setPanelError] = useState<string | null>(null)
   const [previewDoc, setPreviewDoc] = useState<GeneratedDoc | null>(null)
+
+  const errorMessage = (err: unknown, fallback: string) =>
+    (err as { response?: { data?: { message?: string } } }).response?.data?.message || fallback
 
   const { data: meta } = useQuery({
     queryKey: ['intake-meta'],
@@ -46,17 +51,22 @@ export default function MatterPanel({ intake }: { intake: IntakeLike }) {
       queryClient.invalidateQueries({ queryKey: ['intake-docs', intake.id] })
       queryClient.invalidateQueries({ queryKey: ['documents'] })
       setPreviewDoc(doc)
+      setPanelError(null)
     },
+    onError: (err: unknown) => setPanelError(errorMessage(err, 'Document generation failed — please try again.')),
   })
 
   const recordMilestone = useMutation({
     mutationFn: async ({ milestone, date }: { milestone: string; date: string }) =>
       (await api.post(`/intakes/${intake.id}/milestone`, { milestone, date })).data as { warning: string | null },
-    onSuccess: (result) => {
+    onSuccess: (result, vars) => {
       setWarning(result.warning)
+      setPanelError(null)
+      if (!result.warning) setEditingMilestones((p) => ({ ...p, [vars.milestone]: false }))
       queryClient.invalidateQueries({ queryKey: ['legal-intakes'] })
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
     },
+    onError: (err: unknown) => setPanelError(errorMessage(err, 'Recording the milestone failed — please try again.')),
   })
 
   if (!meta) return null
@@ -83,10 +93,10 @@ export default function MatterPanel({ intake }: { intake: IntakeLike }) {
         ))}
       </div>
 
-      {warning && (
+      {(warning || panelError) && (
         <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-          <span>{warning}</span>
+          <span>{warning || panelError}</span>
         </div>
       )}
 
@@ -99,13 +109,25 @@ export default function MatterPanel({ intake }: { intake: IntakeLike }) {
           <div className="space-y-2">
             {milestones.map((m) => {
               const recorded = keyDates[m.id]
+              const editing = editingMilestones[m.id]
               return (
                 <div key={m.id} className="flex items-center gap-2 text-sm">
                   <span className="w-44 text-gray-700 shrink-0">{m.label}</span>
-                  {recorded ? (
+                  {recorded && !editing ? (
                     <span className="text-green-700 text-xs font-medium">
                       ✓ {recorded.date}
                       {recorded.taskIds && recorded.taskIds.length > 0 && ` · ${recorded.taskIds.length} task(s) created`}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingMilestones((p) => ({ ...p, [m.id]: true }))
+                          setMilestoneDates((p) => ({ ...p, [m.id]: recorded.date }))
+                        }}
+                        className="ml-2 text-gray-400 hover:text-primary-600 underline"
+                        title="Re-record with a new date (replaces the follow-up tasks)"
+                      >
+                        change
+                      </button>
                     </span>
                   ) : (
                     <>
