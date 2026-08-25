@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Scale, Trash2, AlertTriangle, ChevronDown, ChevronUp, Gavel, FileX2, HeartCrack, ScrollText, Settings, Globe } from 'lucide-react'
+import { Plus, Scale, Trash2, AlertTriangle, ChevronDown, ChevronUp, Gavel, FileX2, HeartCrack, ScrollText, Settings, Globe, UserSearch } from 'lucide-react'
 import { api } from '../services/api'
 import DebtDefenseForm from '../components/intake/DebtDefenseForm'
 import ExpunctionForm from '../components/intake/ExpunctionForm'
@@ -8,6 +8,7 @@ import DivorceForm from '../components/intake/DivorceForm'
 import EstateForm from '../components/intake/EstateForm'
 import MatterPanel from '../components/intake/MatterPanel'
 import FirmSettingsModal from '../components/intake/FirmSettingsModal'
+import ConflictsSearchModal from '../components/intake/ConflictsSearchModal'
 import { IntakePayload } from '../components/intake/fields'
 
 type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package'
@@ -47,6 +48,7 @@ export default function LegalIntakes() {
   const [newIntakeType, setNewIntakeType] = useState<MatterType | null>(null)
   const [filter, setFilter] = useState<MatterType | 'all'>('all')
   const [showFirmSettings, setShowFirmSettings] = useState(false)
+  const [showConflictsSearch, setShowConflictsSearch] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
@@ -112,6 +114,13 @@ export default function LegalIntakes() {
             </button>
           ))}
           <button
+            onClick={() => setShowConflictsSearch(true)}
+            className="flex items-center gap-2 border border-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+            title="Search all intake parties for conflicts"
+          >
+            <UserSearch size={16} />
+          </button>
+          <button
             onClick={() => setShowFirmSettings(true)}
             className="flex items-center gap-2 border border-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm"
             title="Firm settings for document signature blocks"
@@ -124,6 +133,7 @@ export default function LegalIntakes() {
       <SummaryStrip intakes={intakes} />
 
       {showFirmSettings && <FirmSettingsModal onClose={() => setShowFirmSettings(false)} />}
+      {showConflictsSearch && <ConflictsSearchModal onClose={() => setShowConflictsSearch(false)} />}
 
       <div className="flex gap-2 mb-6">
         {(['all', ...Object.keys(matterMeta)] as Array<MatterType | 'all'>).map((f) => (
@@ -383,6 +393,11 @@ function TriageSummary({ intake }: { intake: LegalIntake }) {
 
 function collectFlags(triage: Record<string, unknown>): string[] {
   const flags: string[] = []
+  if (Array.isArray(triage.conflictHits)) {
+    for (const hit of triage.conflictHits as Array<{ note: string }>) {
+      if (hit.note.startsWith('POTENTIAL CONFLICT')) flags.push(hit.note)
+    }
+  }
   if (Array.isArray(triage.flags)) flags.push(...(triage.flags as string[]))
   if (Array.isArray(triage.escalations)) flags.push(...(triage.escalations as string[]))
   if (Array.isArray(triage.screens)) {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { FileText, CalendarCheck, AlertTriangle, ChevronRight } from 'lucide-react'
+import { FileText, CalendarCheck, AlertTriangle, ChevronRight, Download } from 'lucide-react'
 import { api } from '../../services/api'
 
 interface Meta {
@@ -33,6 +33,20 @@ export default function MatterPanel({ intake }: { intake: IntakeLike }) {
 
   const errorMessage = (err: unknown, fallback: string) =>
     (err as { response?: { data?: { message?: string } } }).response?.data?.message || fallback
+
+  const downloadDocx = async (doc: GeneratedDoc) => {
+    try {
+      const resp = await api.get(`/documents/${doc.id}/docx`, { responseType: 'blob' })
+      const url = URL.createObjectURL(resp.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${doc.title.replace(/[^a-zA-Z0-9 —-]+/g, '')}.docx`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setPanelError(errorMessage(err, 'DOCX export failed — please try again.'))
+    }
+  }
 
   const { data: meta } = useQuery({
     queryKey: ['intake-meta'],
@@ -172,14 +186,21 @@ export default function MatterPanel({ intake }: { intake: IntakeLike }) {
           {docs.length > 0 && (
             <ul className="space-y-1 text-sm">
               {docs.map((d) => (
-                <li key={d.id}>
+                <li key={d.id} className="flex items-center gap-2">
                   <button
                     onClick={() => setPreviewDoc(previewDoc?.id === d.id ? null : d)}
                     className="text-primary-600 hover:underline text-left"
                   >
                     {d.title}
                   </button>
-                  <span className="text-xs text-gray-400"> · {new Date(d.createdAt).toLocaleDateString()} · saved in Documents</span>
+                  <button
+                    onClick={() => downloadDocx(d)}
+                    className="text-gray-400 hover:text-primary-600"
+                    title="Download as Word document"
+                  >
+                    <Download size={14} />
+                  </button>
+                  <span className="text-xs text-gray-400">{new Date(d.createdAt).toLocaleDateString()}</span>
                 </li>
               ))}
             </ul>

@@ -14,8 +14,10 @@ import {
   DivorceIntakeData,
   EstateIntakeData,
 } from '../lib/legalTriage.js'
+import { texasTodayISO } from '../lib/legalTriage.js'
 import { generateDocument, DOC_TYPES, Firm } from '../lib/docgen.js'
 import { STAGES, MILESTONES, findMilestone } from '../lib/matterPipeline.js'
+import { scanConflicts, searchParties } from '../lib/conflicts.js'
 
 const router = Router()
 
@@ -160,6 +162,7 @@ export async function createIntakeRecord(
   source: 'internal' | 'public'
 ) {
   const triage = runTriage(body.matterType, body.data)
+  triage.conflictHits = await scanConflicts(userId, body.matterType, body.clientName, body.data)
 
   let relatedTaskId: string | undefined
   if (body.matterType === 'debt-defense') {
@@ -192,6 +195,71 @@ export async function createIntakeRecord(
 }
 
 export { createIntakeSchema }
+
+// Manual conflicts search across all intake parties (must precede /:id routes)
+router.get('/conflicts-search', async (req: AuthRequest, res: Response) => {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : ''
+    if (q.length < 3) return res.status(400).json({ message: 'Query must be at least 3 characters' })
+    const results = await searchParties(req.userId!, q)
+    res.json({
+      query: q,
+      results,
+      disclaimer: 'First-pass name scan across intakes only — not a substitute for the firm conflicts procedure.',
+    })
+  } catch (error) {
+    console.error('Error searching conflicts:', error)
+    res.status(500).json({ message: 'Failed to search conflicts' })
+  }
+})
+
+// Upcoming legal deadlines across open matters (for the dashboard)
+router.get('/deadlines', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!
+    const rows = await db.select().from(legalIntakes).where(eq(legalIntakes.userId, userId))
+    const today = texasTodayISO()
+    const todayMs = new Date(`${today}T00:00:00Z`).getTime()
+    const deadlines: Array<{ intakeId: string; clientName: string; matterType: string; label: string; date: string; daysLeft: number }> = []
+
+    for (const intake of rows) {
+      if (intake.status === 'declined' || intake.stage === 'closed') continue
+
+      if (intake.matterType === 'debt-defense' && intake.stage === 'intake') {
+        const deadline = (intake.triage as { answerDeadline?: { deadline: string } } | null)?.answerDeadline?.deadline
+        if (deadline) {
+          deadlines.push({
+            intakeId: intake.id,
+            clientName: intake.clientName,
+            matterType: intake.matterType,
+            label: 'Answer due',
+            date: deadline,
+            daysLeft: Math.round((new Date(`${deadline}T00:00:00Z`).getTime() - todayMs) / 86400000),
+          })
+        }
+      }
+
+      if (intake.matterType === 'uncontested-divorce' && intake.keyDates?.petitionFiled && intake.stage !== 'proved-up') {
+        const filed = intake.keyDates.petitionFiled.date
+        const day61 = new Date(new Date(`${filed}T00:00:00Z`).getTime() + 61 * 86400000).toISOString().slice(0, 10)
+        deadlines.push({
+          intakeId: intake.id,
+          clientName: intake.clientName,
+          matterType: intake.matterType,
+          label: '60-day waiting period ends',
+          date: day61,
+          daysLeft: Math.round((new Date(`${day61}T00:00:00Z`).getTime() - todayMs) / 86400000),
+        })
+      }
+    }
+
+    deadlines.sort((a, b) => a.daysLeft - b.daysLeft)
+    res.json(deadlines)
+  } catch (error) {
+    console.error('Error computing deadlines:', error)
+    res.status(500).json({ message: 'Failed to compute deadlines' })
+  }
+})
 
 // Pipeline metadata for the client UI (must precede /:id routes)
 router.get('/meta', (_req: AuthRequest, res: Response) => {
@@ -284,6 +352,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
         : divorceDataSchema
       data = schema.parse(merged) as Record<string, unknown>
       triage = runTriage(intake.matterType, data)
+      triage.conflictHits = await scanConflicts(userId, intake.matterType, intake.clientName, data, intake.id)
 
       // Keep the answer-deadline task in sync with the recomputed triage —
       // a corrected service date must move the calendared deadline with it.
