@@ -15,9 +15,16 @@ const chatSchema = z.object({
   ).optional(),
 })
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy init: constructing the client without a key throws, which previously
+// crashed the whole server at boot when OPENAI_API_KEY was unset. The chat
+// route already degrades gracefully when no key is configured.
+let openaiClient: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  }
+  return openaiClient
+}
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
@@ -45,7 +52,7 @@ Keep responses brief but informative.`,
       { role: 'user', content: message },
     ]
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages,
       max_tokens: 500,

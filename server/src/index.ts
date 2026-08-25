@@ -2,6 +2,9 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import path from 'path'
+import fs from 'fs'
+import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
 import taskRoutes from './routes/tasks.js'
 import goalRoutes from './routes/goals.js'
@@ -21,6 +24,13 @@ import { authMiddleware } from './middleware/auth.js'
 
 const app = express()
 const PORT = process.env.PORT || 5000
+
+// Behind a hosting provider's proxy (Railway, Render, ...), set TRUST_PROXY=1
+// so req.ip reflects the real client address from X-Forwarded-For. Leave unset
+// when running directly on a machine — then the header is client-controlled.
+if (process.env.TRUST_PROXY) {
+  app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1)
+}
 
 // Middleware
 app.use(helmet())
@@ -50,6 +60,19 @@ app.use('/api/admin', authMiddleware, adminRoutes)
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
+
+// In production, serve the built client from this same server so a single
+// deployed process (or a single port on the LAN) serves the whole app.
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const clientDist = path.resolve(__dirname, '../../client/dist')
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist))
+  // SPA fallback: any non-API GET serves index.html so client-side routes
+  // (/intakes, /intake, /login, ...) load directly.
+  app.get(/^\/(?!api\/).*/, (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'))
+  })
+}
 
 // Error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

@@ -20,6 +20,12 @@ const loginSchema = z.object({
 
 router.post('/register', async (req, res) => {
   try {
+    // Deployment hardening: once the firm's accounts exist, set
+    // DISABLE_REGISTRATION=true so strangers on the internet can't sign up.
+    if (process.env.DISABLE_REGISTRATION === 'true') {
+      return res.status(403).json({ message: 'Registration is disabled. Contact the administrator.' })
+    }
+
     const { name, email, password } = registerSchema.parse(req.body)
 
     // Check if user exists

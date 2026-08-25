@@ -56,11 +56,11 @@ const publicSchema = z.intersection(
 
 router.post('/intake', async (req: Request, res: Response) => {
   try {
-    // Key on the socket address, NOT X-Forwarded-For — no trust proxy is
-    // configured, so the header is client-controlled and trivially spoofed.
-    // (If this app is ever deployed behind a reverse proxy, set Express
-    // 'trust proxy' and switch to req.ip.)
-    const ip = req.socket.remoteAddress || 'unknown'
+    // req.ip is the socket address unless TRUST_PROXY is set (index.ts), in
+    // which case Express resolves the real client from X-Forwarded-For for the
+    // trusted hop count. Never read the header directly — untrusted, it is
+    // client-controlled and trivially spoofed.
+    const ip = req.ip || req.socket.remoteAddress || 'unknown'
     if (rateLimited(ip)) {
       return res.status(429).json({ message: 'Too many submissions — please try again later or call the office.' })
     }
