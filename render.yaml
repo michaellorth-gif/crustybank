@@ -1,0 +1,23 @@
+# Render blueprint — connect the repo at https://dashboard.render.com/blueprints
+# and Render creates the service + persistent disk from this file.
+services:
+  - type: web
+    name: crustybank
+    runtime: docker
+    plan: starter # has persistent-disk support; free tier does NOT persist the database
+    healthCheckPath: /api/health
+    disk:
+      name: crustybank-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_PATH
+        value: /data/app.db
+      - key: TRUST_PROXY
+        value: "1"
+      - key: JWT_SECRET
+        generateValue: true # Render generates a strong random secret
+      - key: OPENAI_API_KEY
+        sync: false # set in the dashboard only if the AI chat page is wanted
+      - key: DISABLE_REGISTRATION
+        value: "false" # flip to "true" after the firm's accounts are created

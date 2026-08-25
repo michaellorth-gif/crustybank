@@ -25,6 +25,13 @@ import { authMiddleware } from './middleware/auth.js'
 const app = express()
 const PORT = process.env.PORT || 5000
 
+// Behind a hosting provider's proxy (Railway, Render, ...), set TRUST_PROXY=1
+// so req.ip reflects the real client address from X-Forwarded-For. Leave unset
+// when running directly on a machine — then the header is client-controlled.
+if (process.env.TRUST_PROXY) {
+  app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1)
+}
+
 // Middleware
 app.use(helmet())
 app.use(cors())
