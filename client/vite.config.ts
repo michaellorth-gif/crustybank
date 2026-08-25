@@ -12,6 +12,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: true, // listen on all interfaces so phones on the same Wi-Fi can connect
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
