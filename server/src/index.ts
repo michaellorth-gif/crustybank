@@ -56,9 +56,17 @@ app.use('/api/firm-settings', authMiddleware, firmSettingsRoutes)
 app.use('/api/emails', authMiddleware, emailRoutes)
 app.use('/api/admin', authMiddleware, adminRoutes)
 
-// Health check
+// Health check with non-secret config visibility, so a browser can confirm
+// which environment settings actually reached the running process (values and
+// secrets are never exposed — only booleans about their presence/correctness).
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' })
+  res.json({
+    status: 'ok',
+    registrationDisabled: process.env.DISABLE_REGISTRATION === 'true',
+    trustProxyConfigured: process.env.TRUST_PROXY !== undefined,
+    jwtSecretConfigured: Boolean(process.env.JWT_SECRET),
+    databasePathOnVolume: process.env.DATABASE_PATH === '/data/app.db',
+  })
 })
 
 // In production, serve the built client from this same server so a single
