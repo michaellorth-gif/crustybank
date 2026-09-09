@@ -494,7 +494,12 @@ router.post('/:id/generate', async (req: AuthRequest, res: Response) => {
     }
 
     const settings = await db.select().from(firmSettings).where(eq(firmSettings.userId, userId)).get()
-    const firm: Firm = (settings?.data as Firm) || {}
+    // Brand defaults fill anything Firm Settings leaves blank
+    const firm: Firm = {
+      firmName: 'ClearFee Legal PLLC',
+      attorneyName: 'Michael Lorth',
+      ...((settings?.data as Firm) || {}),
+    }
 
     const doc = generateDocument(intake.matterType, docType, intake.data, intake.clientName, firm)
     const [saved] = await db.insert(documents).values({

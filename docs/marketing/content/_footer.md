@@ -5,7 +5,7 @@ Fill the brackets once and reuse verbatim.
 
 ---
 
-**[FIRM NAME]** — [ATTORNEY FULL NAME], Attorney Responsible for this
+**ClearFee Legal PLLC** — Michael Lorth, Attorney Responsible for this
 communication. Principal office: [CITY], Texas. [PHONE] · [WEBSITE]
 
 This is an advertisement. The information here is general information about
@@ -22,5 +22,5 @@ holders as stated in the written fee agreement.]
 
 Short-form version (social posts, where space is tight):
 
-> [FIRM NAME] · [ATTORNEY NAME] · Principal office: [CITY], TX · Attorney
+> ClearFee Legal PLLC · Michael Lorth · Principal office: [CITY], TX · Attorney
 > advertising. Not legal advice; no guarantee of results.

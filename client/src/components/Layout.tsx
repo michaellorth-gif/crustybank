@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../hooks/useAuthStore'
+import Wordmark from './Wordmark'
 import {
   LayoutDashboard,
   CheckSquare,
@@ -49,7 +50,8 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-6 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-primary-600">Personal Assistant</h1>
+          <Wordmark size="md" />
+          <p className="text-[11px] tracking-wider uppercase text-gray-400 mt-1">Practice platform</p>
         </div>
 
         <nav className="flex-1 p-4 overflow-y-auto">

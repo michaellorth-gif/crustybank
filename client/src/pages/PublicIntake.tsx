@@ -3,13 +3,14 @@
 
 import { useState } from 'react'
 import axios from 'axios'
-import { Scale, Gavel, FileX2, HeartCrack, ScrollText, Car, CheckCircle, ShieldAlert } from 'lucide-react'
+import { Gavel, FileX2, HeartCrack, ScrollText, Car, CheckCircle, ShieldAlert } from 'lucide-react'
 import DebtDefenseForm from '../components/intake/DebtDefenseForm'
 import ExpunctionForm from '../components/intake/ExpunctionForm'
 import DivorceForm from '../components/intake/DivorceForm'
 import EstateForm from '../components/intake/EstateForm'
 import MvaForm from '../components/intake/MvaForm'
 import { IntakePayload } from '../components/intake/fields'
+import Wordmark from '../components/Wordmark'
 
 type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package' | 'reduced-fee-mva'
 
@@ -74,14 +75,9 @@ export default function PublicIntake() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-6 py-5 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary-600 flex items-center justify-center">
-            <Scale size={22} className="text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">Start Your Case Review</h1>
-            <p className="text-sm text-gray-500">Flat-fee legal help — tell us about your situation and an attorney will review it</p>
-          </div>
+        <div className="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+          <Wordmark size="lg" />
+          <p className="text-sm text-gray-500 text-right hidden sm:block">Know the price before you begin.</p>
         </div>
       </header>
 
