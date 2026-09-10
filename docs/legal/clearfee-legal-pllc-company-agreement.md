@@ -13,7 +13,7 @@
 
 This Company Agreement (the "Agreement") of ClearFee Legal PLLC (the "Company")
 is made effective as of [EFFECTIVE DATE — on or after the SOS filing date] by
-Michael L Orth, as the sole Member.
+Michael L. Orth, as the sole Member.
 
 ### Article 1 — Formation and Purpose
 
@@ -50,7 +50,7 @@ time.
 
 ### Article 2 — Member and Membership Interest
 
-**2.1 Sole Member.** Michael L Orth is the sole Member and holds 100% of the
+**2.1 Sole Member.** Michael L. Orth is the sole Member and holds 100% of the
 membership interest.
 
 **2.2 Additional Members.** Additional Members may be admitted only (a) with the
@@ -189,7 +189,7 @@ SIGNED effective as of the date first written above.
 **MEMBER:**
 
 _______________________________
-Michael L Orth, Sole Member
+Michael L. Orth, Sole Member
 State Bar of Texas No. [BAR NUMBER]
 
 **Schedule A — Initial Capital Contributions:** [list cash and any assets

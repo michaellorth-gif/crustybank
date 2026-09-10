@@ -5,7 +5,7 @@ Fill the brackets once and reuse verbatim.
 
 ---
 
-**ClearFee Legal PLLC** — Michael L Orth, Attorney Responsible for this
+**ClearFee Legal PLLC** — Michael L. Orth, Attorney Responsible for this
 communication. Principal office: [CITY], Texas. [PHONE] · [WEBSITE]
 
 This is an advertisement. The information here is general information about
@@ -22,5 +22,5 @@ holders as stated in the written fee agreement.]
 
 Short-form version (social posts, where space is tight):
 
-> ClearFee Legal PLLC · Michael L Orth · Principal office: [CITY], TX · Attorney
+> ClearFee Legal PLLC · Michael L. Orth · Principal office: [CITY], TX · Attorney
 > advertising. Not legal advice; no guarantee of results.

@@ -24,7 +24,7 @@ Three brand pillars, in priority order:
    problems.
 
 **Who we are NOT talking to:** complex litigation, contested custody, big
-estates, catastrophic injury (those route to the standard practice — and the
+estates, catastrophic injury (those route to the standard-fee track within the same firm — and the
 routing story itself builds trust and referrals).
 
 ## 2. The funnel (already built — marketing just fills it)

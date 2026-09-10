@@ -1,6 +1,6 @@
 ---
 name: reduced-fee-mva
-description: Use this skill when Mike asks to screen, intake, or work up a case on the REDUCED-FEE motor vehicle accident track — the discounted-contingency (e.g., 25% pre-suit) product for clear-liability Texas car wrecks handled on heavily automated workflows. Triggers on 'reduced fee MVA,' 'reduced fee track,' 'discount contingency,' 'clear liability wreck,' or an MVA intake explicitly on the reduced-fee product. Do NOT use for standard-fee PI matters, disputed-liability wrecks, commercial/trucking, surgical or catastrophic injuries, or wrongful death — those go to the standard PI practice (and demand drafting for ANY PI matter uses the pi-demand-letter skill).
+description: Use this skill when Mike asks to screen, intake, or work up a case on the REDUCED-FEE motor vehicle accident track — the discounted-contingency (e.g., 25% pre-suit) product for clear-liability Texas car wrecks handled on heavily automated workflows. Triggers on 'reduced fee MVA,' 'reduced fee track,' 'discount contingency,' 'clear liability wreck,' or an MVA intake explicitly on the reduced-fee product. Do NOT use for standard-fee PI matters, disputed-liability wrecks, commercial/trucking, surgical or catastrophic injuries, or wrongful death — those go to the standard-fee track — traditional contingency, same firm (and demand drafting for ANY PI matter uses the pi-demand-letter skill).
 ---
 
 # Reduced-Fee MVA Track (Discounted Contingency, Automated Workflow)
@@ -9,7 +9,7 @@ The product: a **reduced contingency fee (default 25% pre-suit, converting to th
 standard fee if suit must be filed)** for motor-vehicle-accident cases that qualify
 for a heavily automated workflow. The economics only work with a HARD intake gate —
 liability must be clear, insurance must be reachable, and the injury profile must fit
-the pipeline. Everything that fails the gate routes to the standard-fee PI practice,
+the pipeline. Everything that fails the gate routes to the standard-fee track (same firm, traditional contingency),
 which is a GOOD outcome, not a rejection: those cases need the full war chest.
 
 **Every document is a DRAFT for Mike's review. The contingency fee agreement must be

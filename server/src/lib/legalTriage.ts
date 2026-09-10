@@ -486,7 +486,7 @@ export function triageMva(data: MvaIntakeData, now = new Date()): Record<string,
       ? 'Reduced-fee track eligible — signed written contingency agreement (Rule 1.04(d)) + HIPAA authorizations, then LOR and preservation letters out'
       : escalations.length > 0
         ? 'ESCALATE to attorney before signing anything'
-        : 'Route to standard-fee PI practice with a one-line explanation — full workup, standard contingency',
+        : 'Route to the standard-fee track (same firm, traditional contingency) with a one-line explanation to the client — full workup',
     disclaimer: 'Automated first-pass triage for attorney review — not a legal determination.',
   }
 }

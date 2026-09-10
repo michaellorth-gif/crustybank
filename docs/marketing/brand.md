@@ -75,14 +75,17 @@ name already says what we are; ornaments make it look like every other firm.
 
 ## Required compliance line (every external piece)
 
-> ClearFee Legal PLLC · Michael L Orth, Attorney Responsible · Principal office:
+> ClearFee Legal PLLC · Michael L. Orth, Attorney Responsible · Principal office:
 > [CITY], Texas · Attorney advertising. Not legal advice; no guarantee of results.
 
 Fee mentions add the flat-fee or contingency disclosure from
 `content/_footer.md`.
 
-## Relationship to your personal-injury practice
+## One firm, two fee tracks
 
-Separate entity, same owner. Cross-refer freely and honestly ("our
-personal-injury practice, [EXISTING PI FIRM NAME], handles ___"); never blur the two
-in a way that suggests one firm, and run conflicts across both.
+ClearFee Legal PLLC is the firm — there is no separate personal-injury entity.
+Car-wreck cases that don't qualify for the reduced-fee track are handled by the
+same firm on a traditional contingency ("the standard-fee track"). Say it that
+way: one firm, two clearly explained fee structures, and the intake tells the
+client which one fits before they sign. If a separate PI brand is ever formed
+later, this section becomes the cross-referral rules.
