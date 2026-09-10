@@ -497,7 +497,7 @@ router.post('/:id/generate', async (req: AuthRequest, res: Response) => {
     // Brand defaults fill anything Firm Settings leaves blank
     const firm: Firm = {
       firmName: 'ClearFee Legal PLLC',
-      attorneyName: 'Michael Lorth',
+      attorneyName: 'Michael L Orth',
       ...((settings?.data as Firm) || {}),
     }
 

@@ -75,14 +75,14 @@ name already says what we are; ornaments make it look like every other firm.
 
 ## Required compliance line (every external piece)
 
-> ClearFee Legal PLLC · Michael Lorth, Attorney Responsible · Principal office:
+> ClearFee Legal PLLC · Michael L Orth, Attorney Responsible · Principal office:
 > [CITY], Texas · Attorney advertising. Not legal advice; no guarantee of results.
 
 Fee mentions add the flat-fee or contingency disclosure from
 `content/_footer.md`.
 
-## Relationship to the Lorth Law Firm
+## Relationship to your personal-injury practice
 
 Separate entity, same owner. Cross-refer freely and honestly ("our
-personal-injury practice, the Lorth Law Firm, handles ___"); never blur the two
+personal-injury practice, [EXISTING PI FIRM NAME], handles ___"); never blur the two
 in a way that suggests one firm, and run conflicts across both.
