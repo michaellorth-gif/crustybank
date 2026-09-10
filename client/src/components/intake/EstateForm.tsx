@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import {
-  TextField, SelectField, CheckField, Section, FormActions,
+  TextField, SelectField, CheckField, Section, FormActions, NotesField,
   ClientInfoFields, ClientInfo, IntakePayload,
 } from './fields'
 
@@ -90,10 +90,10 @@ export default function EstateForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <ClientInfoFields value={client} onChange={setClient} />
 
-      <Section title="Family">
+      <Section title="Your family">
         <div className="grid grid-cols-2 gap-3">
           <SelectField
-            label="Marital status" required value={maritalStatus} onChange={setMaritalStatus}
+            label="Are you married?" required value={maritalStatus} onChange={setMaritalStatus}
             options={[
               { value: 'single', label: 'Single' },
               { value: 'married', label: 'Married' },
@@ -101,12 +101,12 @@ export default function EstateForm({
               { value: 'divorced', label: 'Divorced' },
             ]}
           />
-          <TextField label="County of residence" value={homesteadCounty} onChange={setHomesteadCounty} />
+          <TextField label="Which county do you live in?" value={homesteadCounty} onChange={setHomesteadCounty} />
         </div>
         {married && (
           <>
-            <TextField label="Spouse's full name" required value={spouseName} onChange={setSpouseName} />
-            <CheckField label="Spouse wants a mirror-image package too (bundle)" checked={mirrorPackageForSpouse} onChange={setMirrorPackageForSpouse} />
+            <TextField label="Your spouse's full name" required value={spouseName} onChange={setSpouseName} />
+            <CheckField label="My spouse wants the same documents too" checked={mirrorPackageForSpouse} onChange={setMirrorPackageForSpouse} hint="Couples are priced as a bundle." />
           </>
         )}
         {children.map((c, i) => (
@@ -115,8 +115,8 @@ export default function EstateForm({
               <TextField label={`Child ${i + 1} — full name`} value={c.name} onChange={(v) => updateChild(i, { name: v })} />
             </div>
             <div className="flex flex-col gap-1 pt-5">
-              <CheckField label="Minor" checked={c.minor} onChange={(v) => updateChild(i, { minor: v })} />
-              <CheckField label="Prior relationship" checked={c.fromPriorRelationship} onChange={(v) => updateChild(i, { fromPriorRelationship: v })} />
+              <CheckField label="Under 18" checked={c.minor} onChange={(v) => updateChild(i, { minor: v })} />
+              <CheckField label="From a previous relationship" checked={c.fromPriorRelationship} onChange={(v) => updateChild(i, { fromPriorRelationship: v })} />
             </div>
             <button type="button" onClick={() => setChildren((p) => p.filter((_, idx) => idx !== i))} className="p-2 text-gray-400 hover:text-red-600 mt-4">
               <Trash2 size={14} />
@@ -128,45 +128,48 @@ export default function EstateForm({
           onClick={() => setChildren((p) => [...p, { name: '', minor: false, fromPriorRelationship: false }])}
           className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 font-medium"
         >
-          <Plus size={14} /> Add child
+          <Plus size={14} /> Add a child
         </button>
       </Section>
 
-      <Section title="Who's in charge (name alternates — first choices get hit by buses too)">
+      <Section
+        title="The people you'd trust"
+        intro="Name a first choice and a backup for each role. You can change your mind before signing."
+      >
         <div className="grid grid-cols-2 gap-3">
-          <TextField label="Executor" required value={executorName} onChange={setExecutorName} />
-          <TextField label="Alternate executor" value={executorAltName} onChange={setExecutorAltName} />
-          <TextField label="Financial agent (POA)" required value={financialAgent} onChange={setFinancialAgent} />
-          <TextField label="Alternate financial agent" value={financialAgentAlt} onChange={setFinancialAgentAlt} />
-          <TextField label="Medical agent" required value={medicalAgent} onChange={setMedicalAgent} />
-          <TextField label="Alternate medical agent" value={medicalAgentAlt} onChange={setMedicalAgentAlt} />
+          <TextField label="Who should carry out your will?" required value={executorName} onChange={setExecutorName} hint="Called the executor. Often a spouse, adult child, or close friend." />
+          <TextField label="Backup" value={executorAltName} onChange={setExecutorAltName} />
+          <TextField label="Who should handle your finances if you can't?" required value={financialAgent} onChange={setFinancialAgent} hint="Financial power of attorney." />
+          <TextField label="Backup" value={financialAgentAlt} onChange={setFinancialAgentAlt} />
+          <TextField label="Who should make medical decisions if you can't?" required value={medicalAgent} onChange={setMedicalAgent} hint="Medical power of attorney." />
+          <TextField label="Backup" value={medicalAgentAlt} onChange={setMedicalAgentAlt} />
         </div>
         {hasMinors && (
-          <TextField label="Guardian for minor children" required value={guardianName} onChange={setGuardianName} />
+          <TextField label="Who should raise your children if neither parent can?" required value={guardianName} onChange={setGuardianName} hint="Called the guardian." />
         )}
         <SelectField
-          label="When does the financial POA take effect?" required value={poaEffective} onChange={setPoaEffective}
+          label="When should the financial power of attorney start?" required value={poaEffective} onChange={setPoaEffective}
           options={[
-            { value: 'immediately', label: 'Immediately (most common)' },
-            { value: 'incapacity', label: 'Only on incapacity (springing)' },
+            { value: 'immediately', label: 'Right away (most people choose this)' },
+            { value: 'incapacity', label: 'Only if a doctor says I can’t manage my affairs' },
           ]}
         />
       </Section>
 
-      <Section title="Distribution plan">
+      <Section title="Who should inherit?">
         <SelectField
-          label="Who inherits the estate?" required value={residuaryPlan} onChange={setResiduaryPlan}
+          label="When you pass away, who gets what you own?" required value={residuaryPlan} onChange={setResiduaryPlan}
           options={[
-            { value: 'spouse-then-children', label: 'All to spouse, then children equally' },
-            { value: 'children-equally', label: 'Children equally (per stirpes)' },
-            { value: 'other', label: 'Something else (attorney drafts)' },
+            { value: 'spouse-then-children', label: 'Everything to my spouse; if they’re gone, split equally among my children' },
+            { value: 'children-equally', label: 'Split equally among my children' },
+            { value: 'other', label: 'Something different (the attorney will work it out with you)' },
           ]}
         />
         {residuaryPlan === 'other' && (
-          <TextField label="Describe the plan" value={residuaryOther} onChange={setResiduaryOther} />
+          <TextField label="Tell us roughly what you have in mind" value={residuaryOther} onChange={setResiduaryOther} />
         )}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Hold inheritances in trust until age</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">If someone inherits while young, hold their share until age</label>
           <input
             type="number"
             min={18}
@@ -175,29 +178,28 @@ export default function EstateForm({
             onChange={(e) => setTrustAge(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
           />
-          <p className="text-xs text-gray-500 mt-1">Between 18 and 40 — 25 is typical</p>
+          <p className="text-xs text-gray-500 mt-1">Between 18 and 40. Most people pick 25.</p>
         </div>
       </Section>
 
-      <Section title="Screening (honest answers route the case correctly)">
-        <CheckField label="Total estate (including life insurance) may approach the federal estate-tax exemption" checked={estateOverExemptionRisk} onChange={setEstateOverExemptionRisk} warn />
-        <CheckField label="A beneficiary has special needs / receives government benefits" checked={specialNeedsBeneficiary} onChange={setSpecialNeedsBeneficiary} warn />
-        <CheckField label="Plan disinherits a spouse or child, or treats children unequally in a way they don't expect" checked={disinheritance} onChange={setDisinheritance} warn />
-        <CheckField label="Any concern about memory, capacity, or family pressure driving this plan" checked={capacityConcerns} onChange={setCapacityConcerns} warn />
-        <CheckField label="Owns a business, significant mineral interests, or foreign assets" checked={complexAssets} onChange={setComplexAssets} warn />
-        <CheckField label="Owns real estate outside Texas" checked={outOfStateProperty} onChange={setOutOfStateProperty} warn />
-        <CheckField label="Has an existing will or POA (will be revoked/replaced)" checked={priorWill} onChange={setPriorWill} />
+      <Section
+        title="A few questions that help us point you to the right service"
+        intro="None of these are deal-breakers. They just tell us whether the simple package fits or whether you'd be better served by something more tailored."
+      >
+        <CheckField label="Everything I own, including life insurance, may be worth more than $10 million" checked={estateOverExemptionRisk} onChange={setEstateOverExemptionRisk} warn hint="Large estates can involve estate-tax planning." />
+        <CheckField label="Someone who'd inherit has a disability or receives government benefits" checked={specialNeedsBeneficiary} onChange={setSpecialNeedsBeneficiary} warn hint="An inheritance can affect benefits unless it's set up carefully." />
+        <CheckField label="I plan to leave out a spouse or child, or treat my children unequally in a way they may not expect" checked={disinheritance} onChange={setDisinheritance} warn />
+        <CheckField
+          label="I, or someone close to me, has concerns about my memory, or someone is pressuring me about these decisions"
+          checked={capacityConcerns} onChange={setCapacityConcerns} warn
+          hint="Your answer is confidential. It helps us make sure the documents truly reflect your wishes."
+        />
+        <CheckField label="I own a business, significant mineral rights, or property in another country" checked={complexAssets} onChange={setComplexAssets} warn />
+        <CheckField label="I own real estate outside Texas" checked={outOfStateProperty} onChange={setOutOfStateProperty} warn />
+        <CheckField label="I already have a will or power of attorney" checked={priorWill} onChange={setPriorWill} hint="New documents replace the old ones — we'll ask for copies." />
       </Section>
 
-      <Section title="Notes">
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-          placeholder="Specific gifts, excluded persons, storage preferences…"
-        />
-      </Section>
+      <NotesField value={notes} onChange={setNotes} placeholder="Specific items you want to go to specific people, anyone you want left out, where you'd like the originals kept…" />
 
       <FormActions onClose={onClose} isLoading={isLoading} />
     </form>

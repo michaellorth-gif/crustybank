@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  TextField, DateField, SelectField, CheckField, Section, FormActions,
+  TextField, DateField, SelectField, CheckField, Section, FormActions, NotesField,
   ClientInfoFields, ClientInfo, IntakePayload,
 } from './fields'
 
@@ -33,6 +33,12 @@ export default function MvaForm({
   const [recordedStatementGiven, setRecordedStatementGiven] = useState(false)
   const [clientIsMinor, setClientIsMinor] = useState(false)
   const [notes, setNotes] = useState('')
+
+  const yesNoUnknown = [
+    { value: 'yes', label: 'Yes' },
+    { value: 'no', label: 'No' },
+    { value: 'unknown', label: "I don't know" },
+  ]
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,98 +77,94 @@ export default function MvaForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <ClientInfoFields value={client} onChange={setClient} />
 
-      <Section title="The wreck">
+      <Section title="What happened?">
         <div className="grid grid-cols-2 gap-3">
-          <DateField label="Date of accident" required value={accidentDate} onChange={setAccidentDate} hint="Starts the 2-year limitations clock" />
-          <TextField label="County" value={accidentCounty} onChange={setAccidentCounty} />
+          <DateField label="When was the accident?" required value={accidentDate} onChange={setAccidentDate} hint="Texas gives you a limited time after a wreck to bring a claim, so this date matters." />
+          <TextField label="In what county?" value={accidentCounty} onChange={setAccidentCounty} />
         </div>
         <SelectField
-          label="What happened?" required value={liabilityScenario} onChange={setLiabilityScenario}
+          label="Which of these best describes it?" required value={liabilityScenario} onChange={setLiabilityScenario}
           options={[
-            { value: 'rear-ended', label: 'Client was rear-ended' },
-            { value: 'other-driver-cited', label: 'Other driver was cited by police' },
-            { value: 'other-driver-dwi', label: 'Other driver was DWI' },
-            { value: 'left-turn-red-light', label: 'Other driver turned left / ran a light' },
-            { value: 'hit-and-run', label: 'Hit and run' },
-            { value: 'disputed', label: 'Fault is disputed' },
-            { value: 'client-cited', label: 'Client was cited' },
+            { value: 'rear-ended', label: 'I was rear-ended' },
+            { value: 'other-driver-cited', label: 'The other driver got the ticket' },
+            { value: 'other-driver-dwi', label: 'The other driver was drunk or on drugs' },
+            { value: 'left-turn-red-light', label: 'The other driver turned in front of me or ran a light' },
+            { value: 'hit-and-run', label: 'The other driver left the scene' },
+            { value: 'disputed', label: "We disagree about whose fault it was" },
+            { value: 'client-cited', label: 'I got the ticket' },
             { value: 'other', label: 'Something else' },
           ]}
         />
-        <CheckField label="Client received any citation from the accident" checked={clientCited} onChange={setClientCited} warn />
-        <CheckField label="Client believes they may share some fault" checked={clientPartialFault} onChange={setClientPartialFault} warn />
-        <CheckField label="A commercial vehicle (18-wheeler, company truck, rideshare) was involved" checked={commercialVehicle} onChange={setCommercialVehicle} warn />
+        <CheckField label="I received a ticket or citation from the accident" checked={clientCited} onChange={setClientCited} warn />
+        <CheckField label="I think I may have been partly at fault" checked={clientPartialFault} onChange={setClientPartialFault} warn hint="Honesty here helps us — it changes how the case is handled, not whether we'll talk to you." />
+        <CheckField label="The other vehicle was a commercial vehicle" checked={commercialVehicle} onChange={setCommercialVehicle} warn hint="An 18-wheeler, delivery truck, company vehicle, or a rideshare driver on a trip." />
       </Section>
 
-      <Section title="Injuries & treatment">
+      <Section title="Your injuries and treatment">
         <div className="grid grid-cols-2 gap-3">
           <SelectField
-            label="Injury severity" required value={injurySeverity} onChange={setInjurySeverity}
+            label="How badly were you hurt?" required value={injurySeverity} onChange={setInjurySeverity}
             options={[
-              { value: 'soft-tissue', label: 'Soft tissue / sprains' },
-              { value: 'fractures', label: 'Fractures (no surgery)' },
-              { value: 'surgery', label: 'Surgery done or recommended' },
-              { value: 'catastrophic', label: 'Catastrophic' },
+              { value: 'soft-tissue', label: 'Sore, strained, or bruised — no broken bones' },
+              { value: 'fractures', label: 'Broken bone(s), no surgery' },
+              { value: 'surgery', label: 'I had surgery, or a doctor recommended it' },
+              { value: 'catastrophic', label: 'Life-changing injuries' },
             ]}
           />
           <SelectField
-            label="Treatment status" required value={treatmentStatus} onChange={setTreatmentStatus}
+            label="Where are you in treatment?" required value={treatmentStatus} onChange={setTreatmentStatus}
             options={[
-              { value: 'not-started', label: 'Not started yet' },
-              { value: 'treating', label: 'Currently treating' },
-              { value: 'complete', label: 'Treatment complete' },
+              { value: 'not-started', label: "I haven't seen a doctor yet" },
+              { value: 'treating', label: "I'm still being treated" },
+              { value: 'complete', label: "I've finished treatment" },
             ]}
+            hint="If you haven't seen a doctor, please do soon — for your health first, and gaps in treatment hurt claims."
           />
         </div>
-        <CheckField label="Anyone died in the accident" checked={fatality} onChange={setFatality} warn />
-        <TextField label="Providers so far (ER, urgent care, chiro, ortho…)" value={providers} onChange={setProviders} placeholder="Name + city, separated by commas" />
-        <CheckField label="Client is under 18" checked={clientIsMinor} onChange={setClientIsMinor} warn />
+        <CheckField label="Someone died in this accident" checked={fatality} onChange={setFatality} warn hint="We're sorry. An attorney will contact you personally." />
+        <TextField label="Where have you been treated so far?" value={providers} onChange={setProviders} placeholder="ER, urgent care, chiropractor, orthopedist — name and city, separated by commas" />
+        <CheckField label="I'm under 18" checked={clientIsMinor} onChange={setClientIsMinor} warn hint="A parent or guardian will need to be involved." />
       </Section>
 
-      <Section title="Insurance (the case IS the coverage)">
+      <Section title="Insurance" intro="Fill in what you know. Anything you're unsure about, leave blank or pick “I don't know” — we'll find it.">
         <div className="grid grid-cols-2 gap-3">
-          <TextField label="Other driver's name" value={otherDriverName} onChange={setOtherDriverName} />
-          <TextField label="Other driver's insurance carrier" value={liabilityCarrier} onChange={setLiabilityCarrier} />
-          <TextField label="Claim number (if opened)" value={claimNumber} onChange={setClaimNumber} />
-          <TextField label="Client's own auto carrier" value={clientAutoCarrier} onChange={setClientAutoCarrier} />
+          <TextField label="The other driver's name" value={otherDriverName} onChange={setOtherDriverName} hint="From the crash report or the exchange of information." />
+          <TextField label="The other driver's insurance company" value={liabilityCarrier} onChange={setLiabilityCarrier} />
+          <TextField label="Claim number, if they gave you one" value={claimNumber} onChange={setClaimNumber} />
+          <TextField label="Your own auto insurance company" value={clientAutoCarrier} onChange={setClientAutoCarrier} />
         </div>
         <div className="grid grid-cols-3 gap-3">
           <SelectField
-            label="UM/UIM coverage?" value={umUimCoverage} onChange={setUmUimCoverage}
-            options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }, { value: 'unknown', label: 'Unknown' }]}
+            label="Does your policy cover uninsured drivers?" value={umUimCoverage} onChange={setUmUimCoverage}
+            options={yesNoUnknown}
+            hint="Called UM/UIM coverage."
           />
           <SelectField
-            label="PIP / MedPay?" value={pipMedPay} onChange={setPipMedPay}
-            options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }, { value: 'unknown', label: 'Unknown' }]}
+            label="Does your policy pay your medical bills?" value={pipMedPay} onChange={setPipMedPay}
+            options={yesNoUnknown}
+            hint="Called PIP or MedPay. Many Texas policies include it."
           />
           <SelectField
-            label="Health insurance" value={healthInsurance} onChange={setHealthInsurance}
+            label="Your health insurance" value={healthInsurance} onChange={setHealthInsurance}
             options={[
-              { value: 'private', label: 'Private' },
+              { value: 'private', label: 'Through work or bought privately' },
               { value: 'medicare', label: 'Medicare' },
               { value: 'medicaid', label: 'Medicaid' },
-              { value: 'erisa', label: 'Employer self-funded (ERISA)' },
+              { value: 'erisa', label: 'Employer self-funded plan' },
               { value: 'none', label: 'None' },
-              { value: 'unknown', label: 'Unknown' },
+              { value: 'unknown', label: "I don't know" },
             ]}
+            hint="Affects how medical bills get paid back at the end."
           />
         </div>
       </Section>
 
-      <Section title="Risk screens">
-        <CheckField label="Client already gave a recorded statement to an adjuster" checked={recordedStatementGiven} onChange={setRecordedStatementGiven} warn />
-        <CheckField label="Another attorney was previously hired on this case" checked={priorAttorney} onChange={setPriorAttorney} warn />
+      <Section title="Two last questions">
+        <CheckField label="I've already given a recorded statement to an insurance adjuster" checked={recordedStatementGiven} onChange={setRecordedStatementGiven} warn hint="Not a problem — we just need to know. Please don't give any more without talking to us." />
+        <CheckField label="I hired another lawyer for this accident before" checked={priorAttorney} onChange={setPriorAttorney} warn />
       </Section>
 
-      <Section title="Notes">
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-          placeholder="Prior accidents, preexisting conditions, witnesses, photos, other claimants…"
-        />
-      </Section>
+      <NotesField value={notes} onChange={setNotes} placeholder="Witnesses, photos or video, earlier accidents or injuries to the same body parts, other people hurt in the wreck…" />
 
       <FormActions onClose={onClose} isLoading={isLoading} />
     </form>

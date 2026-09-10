@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  TextField, DateField, SelectField, CheckField, Section, FormActions,
+  TextField, DateField, SelectField, CheckField, Section, FormActions, NotesField,
   ClientInfoFields, ClientInfo, IntakePayload,
 } from './fields'
 
@@ -59,62 +59,78 @@ export default function DebtDefenseForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <ClientInfoFields value={client} onChange={setClient} />
 
-      <Section title="The lawsuit">
+      <Section title="About the lawsuit" intro="Most of this is on the first page of the papers you received. Copy it as best you can.">
         <div className="grid grid-cols-2 gap-3">
           <SelectField
-            label="Court" required value={courtType} onChange={setCourtType}
+            label="Which court is listed on the papers?" required value={courtType} onChange={setCourtType}
             options={[
-              { value: 'justice', label: 'Justice court (JP)' },
-              { value: 'county', label: 'County court' },
-              { value: 'district', label: 'District court' },
+              { value: 'justice', label: 'Justice Court (Justice of the Peace / "JP")' },
+              { value: 'county', label: 'County Court' },
+              { value: 'district', label: 'District Court' },
             ]}
+            hint="Look near the top for “Justice Court,” “County Court at Law,” or “District Court.” JP is the most common for these cases."
           />
-          <TextField label="County" required value={county} onChange={setCounty} placeholder="e.g. Harris" />
+          <TextField label="County" required value={county} onChange={setCounty} placeholder="e.g. Harris" hint="The county named on the papers." />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <TextField label="Cause number" value={causeNumber} onChange={setCauseNumber} />
-          <TextField label="Amount claimed ($)" type="number" value={amountClaimed} onChange={setAmountClaimed} />
+          <TextField label="Case number (if you see one)" value={causeNumber} onChange={setCauseNumber} hint="Often labeled “Cause No.”" />
+          <TextField label="Amount they say you owe ($)" type="number" value={amountClaimed} onChange={setAmountClaimed} />
         </div>
-        <TextField label="Plaintiff (exactly as pleaded)" required value={plaintiffName} onChange={setPlaintiffName} placeholder="e.g. Midland Credit Management, Inc." />
-        <TextField label="Plaintiff's law firm" value={plaintiffFirm} onChange={setPlaintiffFirm} />
-        <CheckField label="Client has been served with citation" checked={served} onChange={setServed} />
+        <TextField
+          label="Who is suing you?" required value={plaintiffName} onChange={setPlaintiffName}
+          placeholder="e.g. Midland Credit Management, Inc."
+          hint="The company name listed as “Plaintiff” — copy it exactly."
+        />
+        <TextField label="Law firm listed for the other side (if any)" value={plaintiffFirm} onChange={setPlaintiffFirm} />
+        <CheckField
+          label="I've been handed or mailed the official court papers"
+          checked={served} onChange={setServed}
+          hint="Lawyers call this being “served.” If you only found out some other way, uncheck this."
+        />
         {served && (
           <DateField
-            label="Date served" required value={serviceDate} onChange={setServiceDate}
-            hint="From the citation / return of service — this starts the answer clock"
+            label="What date did you receive them?" required value={serviceDate} onChange={setServiceDate}
+            hint="This date starts your deadline to respond, so please be as accurate as you can."
           />
         )}
-        <CheckField label="Petition is sworn / verified (affidavit of account attached)" checked={swornPetition} onChange={setSwornPetition} />
-        <CheckField label="A default judgment has already been signed" checked={defaultJudgmentSigned} onChange={setDefaultJudgmentSigned} warn />
+        <CheckField
+          label="The papers include a sworn statement or affidavit about the account"
+          checked={swornPetition} onChange={setSwornPetition}
+          hint="Look for a page signed before a notary, often titled “Affidavit.” It's fine if you're not sure — leave this unchecked."
+        />
+        <CheckField
+          label="A judge has already ruled against me in this case"
+          checked={defaultJudgmentSigned} onChange={setDefaultJudgmentSigned} warn
+          hint="For example, you received a paper titled “Default Judgment.”"
+        />
       </Section>
 
-      <Section title="The debt">
-        <TextField label="Original creditor" value={originalCreditor} onChange={setOriginalCreditor} placeholder="e.g. Synchrony Bank / Care Credit" />
+      <Section title="About the debt" intro="Estimates are fine here.">
+        <TextField
+          label="Which company was the debt originally with?" value={originalCreditor} onChange={setOriginalCreditor}
+          placeholder="e.g. Capital One, Synchrony / Care Credit"
+          hint="Often a different company than the one suing you — debts get sold."
+        />
         <SelectField
-          label="Does the client recognize this debt?" required value={recognizesDebt} onChange={setRecognizesDebt}
+          label="Do you recognize this debt as yours?" required value={recognizesDebt} onChange={setRecognizesDebt}
           options={[
             { value: 'yes', label: 'Yes' },
             { value: 'no', label: 'No' },
-            { value: 'unsure', label: 'Unsure' },
-            { value: 'identity-theft', label: 'No — identity theft suspected' },
+            { value: 'unsure', label: "I'm not sure" },
+            { value: 'identity-theft', label: 'No — I think someone used my identity' },
           ]}
         />
         <DateField
-          label="Approximate date of last payment" value={lastPaymentDate} onChange={setLastPaymentDate}
-          hint="Drives the 4-year limitations screen — best estimate is fine"
+          label="Roughly when did you last make a payment on it?" value={lastPaymentDate} onChange={setLastPaymentDate}
+          hint="Your best guess is enough. Old debts can have important legal deadlines."
         />
-        <CheckField label="Client has filed (or plans to file) bankruptcy" checked={priorBankruptcy} onChange={setPriorBankruptcy} warn />
+        <CheckField
+          label="I have filed for bankruptcy, or I'm planning to"
+          checked={priorBankruptcy} onChange={setPriorBankruptcy} warn
+        />
       </Section>
 
-      <Section title="Notes">
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-          placeholder="Collection contacts, prior settlements, client goals, exposed assets…"
-        />
-      </Section>
+      <NotesField value={notes} onChange={setNotes} placeholder="Calls or letters from collectors, anything you already paid, what you're hoping for…" />
 
       <FormActions onClose={onClose} isLoading={isLoading} />
     </form>
