@@ -76,7 +76,7 @@ name already says what we are; ornaments make it look like every other firm.
 ## Required compliance line (every external piece)
 
 > ClearFee Legal PLLC · Michael L. Orth, Attorney Responsible · Principal office:
-> [CITY], Texas · Attorney advertising. Not legal advice; no guarantee of results.
+> Dallas, Texas · Attorney advertising. Not legal advice; no guarantee of results.
 
 Fee mentions add the flat-fee or contingency disclosure from
 `content/_footer.md`.
