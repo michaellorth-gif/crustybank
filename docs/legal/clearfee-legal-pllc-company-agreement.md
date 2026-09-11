@@ -42,7 +42,7 @@ its behalf, consistent with Rule 5.04 of the Texas Disciplinary Rules of
 Professional Conduct.
 
 **1.5 Principal Office; Registered Agent.** The principal office is at
-[PRINCIPAL OFFICE ADDRESS], [CITY], Texas. The registered agent and registered
+[PRINCIPAL OFFICE ADDRESS], Dallas, Texas. The registered agent and registered
 office are as stated in the Certificate of Formation, as amended from time to
 time.
 

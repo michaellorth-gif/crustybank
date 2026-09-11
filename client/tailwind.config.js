@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['Fraunces', 'Georgia', 'serif'],
+        display: ['"Libre Baskerville"', 'Georgia', 'serif'],
         sans: ['"Public Sans"', 'system-ui', 'sans-serif'],
       },
       colors: {
