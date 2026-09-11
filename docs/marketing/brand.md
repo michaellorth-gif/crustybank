@@ -53,8 +53,11 @@ genuine urgency (deadlines, refusals). No gradients.
 
 ## Typography
 
-- **Display: Fraunces** (Google Fonts) — headlines, the wordmark, document
-  titles. Weight 600–650. Distinctive without being precious.
+- **Display: Libre Baskerville** (Google Fonts) — headlines, the wordmark,
+  document titles. Weight 700 for the wordmark and page titles, 400 for large
+  pull quotes. The classic authority serif: refined, confident, unmistakably a
+  law firm — chosen over more characterful faces precisely because a logo is
+  seen ten thousand times and should never grate.
 - **Body: Public Sans** — everything else. A civic, unfussy face that reads as
   "public institution you can trust."
 - Uppercase labels get letter-spacing (0.12–0.18em). Numbers in tables use
@@ -64,7 +67,7 @@ genuine urgency (deadlines, refusals). No gradients.
 
 ## Wordmark
 
-Typographic only, no symbol: **Clear** in ink + **Fee** in teal (Fraunces 600),
+Typographic only, no symbol: **Clear** in ink + **Fee** in teal (Libre Baskerville 700),
 followed by **LEGAL** in Public Sans bold small caps, tracked wide, muted gray.
 Implemented as the `Wordmark` component in the app; reproduce the same
 treatment in print. Minimum clear space: the height of the capital C on all
