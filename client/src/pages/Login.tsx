@@ -32,7 +32,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-display font-bold text-ink">ClearFee <span className="text-primary-600">Legal</span></h1>
+          <h1 className="text-3xl font-display font-bold text-ink">ClearFee <span className="text-brass-600">Legal</span></h1>
           <p className="mt-2 text-gray-600">Sign in to your account</p>
         </div>
 

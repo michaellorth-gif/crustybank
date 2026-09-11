@@ -39,17 +39,20 @@ adult with a problem, not a lead.
 
 | Token | Hex | Use |
 |-------|-----|-----|
-| **Ink** | `#1C2A33` | Text, wordmark, dark surfaces |
-| **Teal** (primary) | `#0E7C66` | Accent, links, buttons, the "Fee" in the wordmark |
-| Teal dark | `#0B6453` | Hover/active states |
-| Teal light | `#D5EDE5` | Tints, highlights, active nav |
-| **Paper** | `#FAFAF7` | Page ground (warm off-white, never pure white) |
-| Surface | `#F1F1EB` | Cards, panels |
-| Muted | `#5C6B73` | Secondary text |
-| Amber | `#8A5A12` on `#F6ECD9` | Compliance notices, warnings — never decorative |
+| **Navy** (ink / primary) | `#17233A` | Text, wordmark, buttons, links, dark surfaces |
+| Navy mid | `#2B3D63` | Buttons and links on light ground |
+| Navy light | `#E1E6EF` | Tints, active nav, hover rows |
+| **Brass** (accent) | `#9A6B1F` | The "Fee" in the wordmark, rules, small highlights |
+| Brass on navy | `#D8A94A` | The accent when it sits on a dark surface (favicon, dark cards) |
+| Brass tint | `#F0E3C8` | Highlight backgrounds, "new from portal" badges |
+| **Paper** | `#FBF9F4` | Page ground (warm off-white, never pure white) |
+| Surface | `#F2EEE4` | Cards, panels |
+| Muted | `#5B6474` | Secondary text |
+| Slate notice | `#3F4A5C` on `#E9ECF2` | Compliance notices, warnings — never decorative |
 
-Teal is the single accent; everything else stays quiet. Red is reserved for
-genuine urgency (deadlines, refusals). No gradients.
+Navy does the work; brass is the one warm note and is used sparingly, never
+for body text or large fills. Red is reserved for genuine urgency (deadlines,
+refusals). No gradients, no metallic effects — brass is a flat color.
 
 ## Typography
 
@@ -67,11 +70,11 @@ genuine urgency (deadlines, refusals). No gradients.
 
 ## Wordmark
 
-Typographic only, no symbol: **Clear** in ink + **Fee** in teal (Libre Baskerville 700),
+Typographic only, no symbol: **Clear** in navy + **Fee** in brass (Libre Baskerville 700),
 followed by **LEGAL** in Public Sans bold small caps, tracked wide, muted gray.
 Implemented as the `Wordmark` component in the app; reproduce the same
 treatment in print. Minimum clear space: the height of the capital C on all
-sides. Favicon: ink rounded square, "C" paper + "F" teal.
+sides. Favicon: navy rounded square, "C" paper + "F" brass.
 
 Do not: add a scale-of-justice icon, a gavel, a shield, or a checkmark. The
 name already says what we are; ornaments make it look like every other firm.

@@ -240,7 +240,7 @@ function IntakeCard({
                 </span>
               )}
               {intake.source === 'public' && (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-700" title="Submitted through the public portal">
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-brass-100 text-brass-700" title="Submitted through the public portal">
                   <Globe size={11} /> web
                 </span>
               )}
@@ -326,7 +326,7 @@ function SummaryStrip({ intakes }: { intakes: LegalIntake[] }) {
   const cells = [
     { label: 'Open intakes', value: open.length, cls: 'text-gray-900' },
     { label: 'Urgent deadlines (≤5 days)', value: urgent.length, cls: urgent.length ? 'text-red-600' : 'text-gray-900' },
-    { label: 'New from web portal', value: publicNew.length, cls: publicNew.length ? 'text-teal-600' : 'text-gray-900' },
+    { label: 'New from web portal', value: publicNew.length, cls: publicNew.length ? 'text-brass-600' : 'text-gray-900' },
     { label: 'Accepted matters', value: intakes.filter((i) => i.status === 'accepted').length, cls: 'text-green-700' },
   ]
   return (
