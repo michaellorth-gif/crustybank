@@ -1843,7 +1843,13 @@ function miniCalNav(dir) {
 }
 
 // ─── CALENDAR RENDER ──────────────────────────────────────
+let _renderCalendarBusy = false;
 function renderCalendar() {
+  if (_renderCalendarBusy) return;
+  _renderCalendarBusy = true;
+  try { _renderCalendarImpl(); } finally { _renderCalendarBusy = false; }
+}
+function _renderCalendarImpl() {
   const container = document.getElementById('calContent');
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -3225,8 +3231,10 @@ const _origNavigate = navigate;
 window.addEventListener('load', () => {
   if (isMobile()) mobileInit();
 });
+let _resizeTimer = null;
 window.addEventListener('resize', () => {
-  if (isMobile()) mobileInit();
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => { if (isMobile()) mobileInit(); }, 150);
 });
 </script>
 </body>
