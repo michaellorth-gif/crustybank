@@ -42,6 +42,7 @@
     --shadow-lg: 0 4px 24px rgba(0,0,0,0.10);
     --radius: 12px;
     --radius-sm: 8px;
+    --hour-h: 72px; /* height of one hour row; JS reads this via hourH() so event blocks line up */
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -641,7 +642,7 @@
 
   .hour-label {
     grid-column: 1;
-    height: 72px;
+    height: var(--hour-h);
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
@@ -655,7 +656,7 @@
 
   .hour-row {
     grid-column: 2 / -1;
-    height: 72px;
+    height: var(--hour-h);
     border-bottom: 1px solid var(--border);
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -1146,8 +1147,13 @@
     .status-bar { display: none; }
     .cal-toolbar { display: none; }
 
-    .app { grid-template-rows: 1fr; }
-    .main { grid-template-columns: 1fr; height: 100dvh; display: flex; flex-direction: column; }
+    /* One scroll container on phones. The page itself never scrolls; only the
+       active view (agenda list, day/week grid, month, notes) does. This prevents
+       iOS from chaining a swipe at the end of the list into a page scroll that
+       drags the header/nav around and hides content. */
+    html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+    .app { grid-template-rows: 1fr; height: 100dvh; min-height: 0; overflow: hidden; }
+    .main { grid-template-columns: 1fr; height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 
     .mobile-header {
       display: flex !important;
@@ -1170,7 +1176,7 @@
     }
 
     .mobile-week-strip {
-      display: flex !important;
+      display: flex; /* not !important: JS toggles inline display per view (hidden on Agenda/Notes/Month) */
       overflow-x: auto;
       padding: 10px 16px;
       gap: 4px;
@@ -1179,8 +1185,7 @@
       flex-shrink: 0;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
-      position: sticky;
-      top: 0;
+      overscroll-behavior-x: contain;
       z-index: 30;
     }
     .mobile-week-strip::-webkit-scrollbar { display: none; }
@@ -1200,14 +1205,24 @@
     .mobile-week-day.has-events .mobile-week-day-dot { background: var(--text-light); }
     .mobile-week-day.today .mobile-week-day-dot { background: white; }
 
-    .calendar-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+    .calendar-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+    #calContent { flex: 1; min-height: 0; }
 
-    .day-view { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-    .day-body { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding-bottom: 120px; }
+    /* Bottom clearance on every scroller = nav (60) + FAB overhang + safe area */
+    .day-view, .week-view { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+    .day-body, .week-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-bottom: calc(120px + env(safe-area-inset-bottom)); }
     .day-grid { display: grid; grid-template-columns: 48px 1fr; min-width: 0; }
 
-    .agenda-view { padding: 0 16px; padding-bottom: 120px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
-    .month-view { padding: 8px 12px; padding-bottom: 120px; }
+    .agenda-view { flex: 1; min-height: 0; padding: 0 16px; padding-bottom: calc(120px + env(safe-area-inset-bottom)); overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+    .month-view { flex: 1; min-height: 0; padding: 8px 12px; padding-bottom: calc(120px + env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; }
+    .agenda-day-header { top: 0; }
+
+    /* Notes view: single column on phones (desktop layout is a 2-column grid) */
+    #calContent > div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+    #notesViewArea { min-height: 220px !important; }
+
+    /* Sources screen scrolls on its own when the calendar is hidden */
+    .connect-screen { overflow-y: auto; min-height: 0; padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
 
     .mobile-fab {
       display: flex !important;
@@ -1267,8 +1282,8 @@
     .connect-cards { max-width: 100%; }
 
     /* Tighter grid on mobile */
-    .hour-label { height: 52px; font-size: 9px; padding: 3px 4px 0; width: 36px; }
-    .hour-row { height: 52px; }
+    :root { --hour-h: 52px; }
+    .hour-label { font-size: 9px; padding: 3px 4px 0; width: 36px; }
     .week-header { grid-template-columns: 36px repeat(7, 1fr); }
     .week-grid { grid-template-columns: 36px repeat(7, 1fr); }
     .week-day-header { padding: 6px 2px; }
@@ -1440,6 +1455,20 @@
 
     <!-- MAIN AREA -->
     <div class="calendar-area">
+      <!-- MOBILE HEADER + WEEK STRIP (hidden on desktop; live inside the flex column so the
+           agenda list is the only vertical scroller on phones) -->
+      <div class="mobile-header" id="mobileHeader">
+        <div class="mobile-header-left">
+          <div class="mobile-header-date" id="mobileHeaderDate"></div>
+          <div class="mobile-header-sub" id="mobileHeaderSub"></div>
+        </div>
+        <div class="mobile-header-right">
+          <button class="mobile-icon-btn" onclick="syncAll()" title="Sync">↻</button>
+          <button class="mobile-icon-btn" onclick="showView('connect')" title="Sources">⚙</button>
+        </div>
+      </div>
+      <div class="mobile-week-strip" id="mobileWeekStrip"></div>
+
       <div class="cal-toolbar">
         <div class="cal-nav">
           <button class="cal-nav-btn" onclick="navigate(-1)">‹</button>
@@ -1519,22 +1548,7 @@
     </div>
   </div>
 </div>
-<!-- MOBILE HEADER -->
-  <div class="mobile-header" id="mobileHeader">
-    <div class="mobile-header-left">
-      <div class="mobile-header-date" id="mobileHeaderDate"></div>
-      <div class="mobile-header-sub" id="mobileHeaderSub"></div>
-    </div>
-    <div class="mobile-header-right">
-      <button class="mobile-icon-btn" onclick="syncAll()" title="Sync">↻</button>
-      <button class="mobile-icon-btn" onclick="showView('connect')" title="Sources">⚙</button>
-    </div>
-  </div>
-
-  <!-- MOBILE WEEK STRIP -->
-  <div class="mobile-week-strip" id="mobileWeekStrip"></div>
-
-  <!-- MOBILE FAB -->
+<!-- MOBILE FAB -->
   <button class="mobile-fab" onclick="openNewEvent()">+</button>
 
   <!-- MOBILE BOTTOM NAV -->
@@ -1717,7 +1731,9 @@ let state = {
   googleToken: null,
   sheetsId: localStorage.getItem('morthSheetsId') || null,
   outlookIcs: localStorage.getItem('outlookIcs') || '',
-  appleIcs: localStorage.getItem('appleIcs') || 'webcal://p126-caldav.icloud.com/published/2/MTk5NTg3NjQwMjE5OTU4N_zVbokGv8LoDROGUWBYFltR6R6iThZbH7V4lrDFvqy-',
+  // Feed URLs are entered once in Sources and kept only in this browser's localStorage.
+  // They are never hardcoded here: the URL *is* the credential, and this file is public.
+  appleIcs: localStorage.getItem('appleIcs') || '',
   syncing: false,
   lastSync: null,
   currentIcsTarget: null,
@@ -1756,8 +1772,8 @@ function loadLocal() {
     state.notes = d.notes || '';
     state.events = (d.events || []).map(e => ({ ...e, start: new Date(e.start), end: new Date(e.end) }));
   }
-  state.outlookIcs = localStorage.getItem('outlookIcs') || 'https://outlook.office365.com/owa/calendar/2aae242b250d45b19dd441c91a2839f0@millerweisbrod.com/6ce502893e254ddea4f98fbb3658c9836828068314316687913/calendar.ics';
-  state.appleIcs = localStorage.getItem('appleIcs') || 'webcal://p126-caldav.icloud.com/published/2/MTk5NTg3NjQwMjE5OTU4N_zVbokGv8LoDROGUWBYFltR6R6iThZbH7V4lrDFvqy-';
+  state.outlookIcs = localStorage.getItem('outlookIcs') || '';
+  state.appleIcs = localStorage.getItem('appleIcs') || '';
 }
 
 function saveLocal() {
@@ -1979,8 +1995,8 @@ function positionWeekEvents(weekStart) {
     const startH = ev.start.getHours() + ev.start.getMinutes() / 60;
     const endH = ev.end.getHours() + ev.end.getMinutes() / 60;
     const duration = Math.max(endH - startH, 0.5);
-    const top = startH * 72;
-    const height = duration * 72 - 2;
+    const top = startH * hourH();
+    const height = duration * hourH() - 2;
 
     const hourRows = grid.querySelectorAll('.hour-row');
     if (!hourRows[0]) return;
@@ -2043,7 +2059,7 @@ function renderWeekEventsOverlay(weekStart, weekEvents) {
     const overlay = document.createElement('div');
     overlay.className = 'day-overlay';
     overlay.id = `day-overlay-${dayIdx}`;
-    overlay.style.cssText = `position:absolute;top:0;left:${colRect.left - gridRect.left}px;width:${colRect.width}px;height:${24*72}px;pointer-events:none;`;
+    overlay.style.cssText = `position:absolute;top:0;left:${colRect.left - gridRect.left}px;width:${colRect.width}px;height:${24*hourH()}px;pointer-events:none;`;
     grid.style.position = 'relative';
     grid.appendChild(overlay);
 
@@ -2056,8 +2072,8 @@ function renderWeekEventsOverlay(weekStart, weekEvents) {
       const startH = ev.start.getHours() + ev.start.getMinutes() / 60;
       const endH = ev.end.getHours() + ev.end.getMinutes() / 60;
       const duration = Math.max(endH - startH, 0.5);
-      const top = startH * 72;
-      const height = duration * 72 - 2;
+      const top = startH * hourH();
+      const height = duration * hourH() - 2;
       const cls = ev.source === 'outlook' ? 'work' : ev.source === 'apple' ? 'apple' : ev.type === 'deadline' ? 'deadline' : 'personal';
 
       const el = document.createElement('div');
@@ -2074,12 +2090,13 @@ function setTimeIndicator() {
   document.querySelectorAll('.time-indicator').forEach(e => e.remove());
   const now = new Date();
   const h = now.getHours() + now.getMinutes() / 60;
-  const top = h * 72;
-  const grid = document.getElementById('weekGrid');
+  const top = h * hourH();
+  const grid = document.getElementById('weekGrid') || document.getElementById('dayGrid');
   if (grid) {
+    const gutter = grid.id === 'dayGrid' ? (window.innerWidth <= 768 ? 48 : 56) : (window.innerWidth <= 768 ? 36 : 56);
     const ind = document.createElement('div');
     ind.className = 'time-indicator';
-    ind.style.cssText = `top:${top}px;left:56px;right:0;position:absolute;z-index:20;`;
+    ind.style.cssText = `top:${top}px;left:${gutter}px;right:0;position:absolute;z-index:20;`;
     grid.style.position = 'relative';
     grid.appendChild(ind);
     // Scroll to current time
@@ -2095,7 +2112,7 @@ function renderDayView(date) {
   for (let h = 0; h < 24; h++) {
     const label = h === 0 ? '' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h-12}pm`;
     html += `<div class="hour-label">${label}</div>
-    <div class="hour-cell" style="height:72px;border-bottom:1px solid var(--border);position:relative;" onclick="quickAddEvent(${date.getFullYear()},${date.getMonth()},${date.getDate()},${h})"></div>`;
+    <div class="hour-cell" style="height:var(--hour-h);border-bottom:1px solid var(--border);position:relative;" onclick="quickAddEvent(${date.getFullYear()},${date.getMonth()},${date.getDate()},${h})"></div>`;
   }
   html += `</div></div></div>`;
   return html;
@@ -2109,8 +2126,8 @@ function positionDayEvents(date) {
     const startH = ev.start.getHours() + ev.start.getMinutes() / 60;
     const endH = ev.end.getHours() + ev.end.getMinutes() / 60;
     const duration = Math.max(endH - startH, 0.5);
-    const top = startH * 72;
-    const height = duration * 72 - 2;
+    const top = startH * hourH();
+    const height = duration * hourH() - 2;
     const cls = ev.source === 'outlook' ? 'work' : ev.source === 'apple' ? 'apple' : ev.type === 'deadline' ? 'deadline' : 'personal';
 
     const cells = grid.querySelectorAll('.hour-cell');
@@ -3037,6 +3054,7 @@ async function loadFromSheets() {
 }
 
 // ─── HELPERS ──────────────────────────────────────────────
+function hourH() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hour-h')) || 72; }
 function isSameDay(a, b) {
   return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
 }
@@ -3230,6 +3248,21 @@ const _origNavigate = navigate;
 // Init mobile on load
 window.addEventListener('load', () => {
   if (isMobile()) mobileInit();
+});
+
+// When a Home Screen app is resumed the next morning, `state.today` is stale and
+// the agenda still starts from yesterday. Refresh the date and re-sync on resume.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  const now = new Date();
+  if (!isSameDay(now, state.today)) {
+    if (isSameDay(state.current, state.today)) state.current = new Date(now);
+    state.today = now;
+    state.miniCalMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    renderMiniCal();
+    renderCalendar();
+  }
+  if (!state.lastSync || (now - state.lastSync) > 5 * 60 * 1000) syncAll();
 });
 let _resizeTimer = null;
 window.addEventListener('resize', () => {
