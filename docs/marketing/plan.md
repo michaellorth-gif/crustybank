@@ -123,3 +123,21 @@ against the current rule text before first publication**:
 | `social-first-month.md` | 12 social posts (4 weeks) | Mixed — educational vs promotional flagged per post |
 | `gbp-posts.md` | 4 Google Business Profile posts | Same standard as ads — review |
 | `emails-cross-sell.md` | 2 emails to former clients + closing-letter P.S. | Former clients = exempt category; confirm |
+
+## 8. Content ideas (not yet drafted)
+
+- **Blog post: cases I've turned down.** Purpose: show that Mike is a
+  truthful and fair attorney — he tells people when they don't have a case,
+  or when hiring a lawyer won't pay off for them, instead of signing up
+  everything. Flags before drafting:
+  - Prospective clients' information is confidential even when the case is
+    declined. Use composites or heavily anonymized fact patterns; no detail
+    that lets a reader (or the person) recognize a specific declined client.
+    Get consent if anything is close to identifiable.
+  - This is about Mike, not general legal education, so it is likely
+    *promotional* rather than exempt — assume Advertising Review Committee
+    filing (§6.4) and the standard footer.
+  - Show fairness through the examples rather than claiming it ("honest,"
+    "fair" as self-labels edge toward unverifiable characterizations under
+    §6.1). Don't imply the declined people had no options — say what they
+    could do instead (small claims, another lawyer, wait and see, etc.).
