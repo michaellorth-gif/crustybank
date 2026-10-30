@@ -14,6 +14,7 @@ import Documents from './pages/Documents'
 import Workflows from './pages/Workflows'
 import LegalIntakes from './pages/LegalIntakes'
 import PublicIntake from './pages/PublicIntake'
+import RecallLanding from './pages/RecallLanding'
 import Emails from './pages/Emails'
 import Admin from './pages/Admin'
 
@@ -28,6 +29,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/intake" element={<PublicIntake />} />
+      <Route path="/recall/:slug" element={<RecallLanding />} />
       <Route
         path="/"
         element={

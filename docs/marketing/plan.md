@@ -47,7 +47,8 @@ is the master KPI** — visible on the Legal Intakes summary strip.
 | 4 | **Practice-line landing pages** | Each line needs its own page with fees and FAQ, ending at `/intake` | Time | Drafts in `content/landing-*.md` |
 | 5 | **Google Local Services Ads** | Pay-per-lead, screened, sits above regular ads; strong for debt defense + MVA | ~$25–75/lead | After landing pages are live |
 | 6 | **Social (Facebook/Nextdoor)** | Debt suits, tickets, records — Nextdoor demographics ask these exact questions | Free–low | First month drafted (`content/social-first-month.md`) |
-| 7 | **Referral network** | Bankruptcy attorneys (debt cases they decline), criminal defense (expunction after acquittal/dismissal), family law (Tier-1 divorces they don't want) | Coffee | Three lunch meetings; a one-pager per line |
+| 7 | **Recall campaigns** | Each CPSC recall with real injuries is a 48-hour window of high-intent search traffic; the daily recall screen flags candidates and the `recall-campaign` skill builds the page + ads | ~$300–1,500/campaign search spend | DREO heater (`/recall/dreo-space-heater`) drafted — approve, file, launch |
+| 8 | **Referral network** | Bankruptcy attorneys (debt cases they decline), criminal defense (expunction after acquittal/dismissal), family law (Tier-1 divorces they don't want) | Coffee | Three lunch meetings; a one-pager per line |
 
 Skip for now: TV/radio/billboards (wrong economics for flat-fee volume),
 bought lead lists (quality + ethics risk), TikTok (until there's bandwidth).
@@ -118,6 +119,7 @@ against the current rule text before first publication**:
 | `landing-divorce.md` | Uncontested divorce landing page | Yes |
 | `landing-estate.md` | Estate package landing page | Yes |
 | `landing-mva.md` | Reduced-fee MVA landing page | Yes — contingency disclosures matter most here |
+| `recall/<slug>.md` | Per-recall campaign: decision memo, search ads, GBP + social posts, compliance checklist (page itself lives in the app at `/recall/<slug>`) | Yes — promotional, contingency; one filing per campaign |
 | `article-debt-lawsuit.md` | SEO: "Sued by a debt collector in Texas" | Likely exempt (educational) — confirm |
 | `article-expunction.md` | SEO: "Clearing your record in Texas" | Likely exempt — confirm |
 | `social-first-month.md` | 12 social posts (4 weeks) | Mixed — educational vs promotional flagged per post |

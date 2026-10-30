@@ -2,17 +2,21 @@
 // Uses raw axios (not the authed api client) so the 401 interceptor never fires.
 
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import axios from 'axios'
-import { Gavel, FileX2, HeartCrack, ScrollText, Car, CheckCircle, ShieldAlert } from 'lucide-react'
+import { Gavel, FileX2, HeartCrack, ScrollText, Car, Flame, CheckCircle, ShieldAlert } from 'lucide-react'
 import DebtDefenseForm from '../components/intake/DebtDefenseForm'
 import ExpunctionForm from '../components/intake/ExpunctionForm'
 import DivorceForm from '../components/intake/DivorceForm'
 import EstateForm from '../components/intake/EstateForm'
 import MvaForm from '../components/intake/MvaForm'
+import ProductInjuryForm from '../components/intake/ProductInjuryForm'
 import { IntakePayload } from '../components/intake/fields'
 import Wordmark from '../components/Wordmark'
 
-type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package' | 'reduced-fee-mva'
+type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package' | 'reduced-fee-mva' | 'product-injury'
+
+const MATTER_TYPES: MatterType[] = ['debt-defense', 'expunction', 'uncontested-divorce', 'estate-package', 'reduced-fee-mva', 'product-injury']
 
 const products: Array<{ id: MatterType; icon: typeof Gavel; title: string; blurb: string }> = [
   {
@@ -45,13 +49,31 @@ const products: Array<{ id: MatterType; icon: typeof Gavel; title: string; blurb
     title: 'Car accident',
     blurb: "Hurt in a wreck that wasn't your fault? Clear-liability cases may qualify for our reduced contingency fee.",
   },
+  {
+    id: 'product-injury',
+    icon: Flame,
+    title: 'Hurt by a recalled or defective product',
+    blurb: 'A heater, battery, charger, or other product caught fire, failed, or injured someone? Keep the product and tell us what happened.',
+  },
 ]
 
 const DISCLAIMER =
   'Submitting this form does not create an attorney-client relationship, and the firm is not your lawyer unless and until you sign an engagement letter. Do not consider your matter handled — court deadlines keep running until an attorney has appeared for you. The information you submit is kept confidential and reviewed by an attorney.'
 
 export default function PublicIntake() {
-  const [selected, setSelected] = useState<MatterType | null>(null)
+  // A link can preselect the form and carry attribution, e.g.
+  // /intake?matter=product-injury&campaign=dreo-space-heater&recall=27-054
+  const [params] = useSearchParams()
+  const requested = params.get('matter')
+  const initial = MATTER_TYPES.find((m) => m === requested) || null
+  const campaignParam = params.get('campaign') || undefined
+  const prefill = {
+    campaign: campaignParam && /^[a-z0-9-]{1,60}$/.test(campaignParam) ? campaignParam : undefined,
+    recallNumber: params.get('recall')?.slice(0, 20) || undefined,
+    productName: params.get('product')?.slice(0, 120) || undefined,
+    brand: params.get('brand')?.slice(0, 60) || undefined,
+  }
+  const [selected, setSelected] = useState<MatterType | null>(initial)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -143,6 +165,9 @@ export default function PublicIntake() {
             )}
             {selected === 'reduced-fee-mva' && (
               <MvaForm onSubmit={submit} onClose={() => setSelected(null)} isLoading={submitting} />
+            )}
+            {selected === 'product-injury' && (
+              <ProductInjuryForm onSubmit={submit} onClose={() => setSelected(null)} isLoading={submitting} prefill={prefill} />
             )}
             <p className="text-xs text-gray-500 mt-4 pt-4 border-t border-gray-100">{DISCLAIMER}</p>
           </div>

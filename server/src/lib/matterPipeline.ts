@@ -34,6 +34,7 @@ export const STAGES: Record<string, string[]> = {
   'uncontested-divorce': ['intake', 'petition-filed', 'waiver-signed', 'decree-circulating', 'proved-up', 'closed'],
   'estate-package': ['intake', 'drafting', 'signing-scheduled', 'executed', 'closed'],
   'reduced-fee-mva': ['intake', 'treating', 'records', 'demand', 'negotiation', 'settled', 'closed'],
+  'product-injury': ['intake', 'evidence-secured', 'investigation', 'demand', 'litigation', 'settled', 'closed'],
 }
 
 export const MILESTONES: Record<string, MilestoneDef[]> = {
@@ -319,6 +320,104 @@ MILESTONES['reduced-fee-mva'] = [
     }, {
       title: 'Closing statement + disbursement',
       description: 'Fee exactly as contracted (reduced rate unless suit was filed), expenses itemized, client signature on the closing statement before disbursement.',
+      dueDate: plusDays(date, 30),
+      priority: 'high',
+    }],
+  },
+]
+
+MILESTONES['product-injury'] = [
+  {
+    id: 'productSecured',
+    label: 'Product secured (chain of custody started)',
+    advanceStageTo: 'evidence-secured',
+    tasks: (date, data) => [{
+      title: 'Preservation letters to every entity in the chain',
+      description: `Manufacturer${data.manufacturerName ? ` (${data.manufacturerName})` : ''}, seller of record${data.sellerName ? ` (${data.sellerName})` : ''}, retailer/marketplace${data.retailerName ? ` (${data.retailerName})` : ''}, and the client's property insurer if a claim was filed. Certified mail; demand the seller-identity and complaint-history records.`,
+      dueDate: plusDays(date, 3),
+      priority: 'high',
+    }, {
+      title: 'Photograph and log the product; no testing without the expert',
+      description: 'Chain-of-custody log opened; product bagged and stored at the firm or a bonded facility; packaging, cord, outlet, and debris included. Nobody plugs it in.',
+      dueDate: plusDays(date, 2),
+      priority: 'high',
+    }, {
+      title: 'Pull the CPSC recall file and SaferProducts.gov incident reports',
+      description: 'Recall notice, incident counts, and dates; public incident reports for the model establish what the seller knew and when. Request the fire-department report if one exists.',
+      dueDate: plusDays(date, 7),
+      priority: 'medium',
+    }, {
+      title: 'Identify the manufacturer and importer of record',
+      description: 'Product label, packaging, recall notice, Amazon order history, and customs/importer data. A U.S. importer is often the only collectible defendant on a foreign-made product.',
+      dueDate: plusDays(date, 14),
+      priority: 'high',
+    }, {
+      title: 'Retain the failure-analysis / origin-and-cause expert',
+      description: 'Engage before any inspection; joint non-destructive inspection protocol offered to all noticed parties so a later destructive test cannot be attacked as spoliation.',
+      dueDate: plusDays(date, 21),
+      priority: 'high',
+    }],
+  },
+  {
+    id: 'expertOpinion',
+    label: 'Expert defect opinion received',
+    advanceStageTo: 'investigation',
+    tasks: (date) => [{
+      title: 'Attorney decision: defendants, theories, and venue',
+      description: 'Design/manufacturing/marketing defect theories per the expert; Chapter 82 seller exceptions for each nonmanufacturing seller; jurisdiction over any foreign manufacturer; venue options.',
+      dueDate: plusDays(date, 10),
+      priority: 'high',
+    }, {
+      title: 'Order all medical records and itemized bills',
+      description: 'Every treating provider from intake forward. Burn and surgical records with photographs; life-care input if catastrophic.',
+      dueDate: plusDays(date, 3),
+      priority: 'high',
+    }],
+  },
+  {
+    id: 'demandSent',
+    label: 'Demand sent',
+    advanceStageTo: 'demand',
+    tasks: (date) => [{
+      title: 'Demand response follow-up',
+      description: 'Chase each noticed carrier or company at the demand deadline; log every offer in writing. Policy-limits framing per the pi-demand-letter skill where supported.',
+      dueDate: plusDays(date, 30),
+      priority: 'high',
+    }],
+  },
+  {
+    id: 'suitFiled',
+    label: 'Suit filed',
+    advanceStageTo: 'litigation',
+    tasks: (date) => [{
+      title: 'Service plan for every defendant (Hague route for foreign entities)',
+      description: 'Domestic defendants served promptly; foreign manufacturer served under the Hague Service Convention or by the method the court approves — start now, it takes months.',
+      dueDate: plusDays(date, 14),
+      priority: 'high',
+    }, {
+      title: 'Serve product-specific discovery and the inspection protocol',
+      description: 'Design files, test reports, prior complaints and incidents, recall communications with CPSC, exemplar units; agreed protocol for destructive testing.',
+      dueDate: plusDays(date, 45),
+      priority: 'medium',
+    }],
+  },
+  {
+    id: 'settled',
+    label: 'Settled (client authority documented)',
+    advanceStageTo: 'settled',
+    tasks: (date) => [{
+      title: 'Review release before client signs',
+      description: 'Scope limited to this incident; no confidentiality that blocks a CPSC report; Medicare language reviewed if applicable; product disposition addressed.',
+      dueDate: plusDays(date, 7),
+      priority: 'high',
+    }, {
+      title: 'Resolve liens, subrogation, and reimbursement claims',
+      description: 'Hospital liens (Tex. Prop. Code ch. 55), health plan / Medicare / Medicaid / ERISA reimbursement, and the property insurer\'s subrogated interest — negotiate reductions, document zero-balance letters.',
+      dueDate: plusDays(date, 30),
+      priority: 'high',
+    }, {
+      title: 'Closing statement + disbursement',
+      description: 'Fee exactly as contracted; expert and expense items itemized; client signature on the closing statement before disbursement.',
       dueDate: plusDays(date, 30),
       priority: 'high',
     }],

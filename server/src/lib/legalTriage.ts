@@ -524,3 +524,196 @@ export function triageDivorce(data: DivorceIntakeData): Record<string, unknown> 
     disclaimer: 'Automated first-pass triage for attorney review — not a legal determination.',
   }
 }
+
+// ---------------------------------------------------------------------------
+// Product injury (recall / defective product) — standard contingency track.
+// The screening questions are the ones that decide whether a product case is
+// provable and collectible: is the product still in hand, who in the chain of
+// distribution is actually reachable, and is the injury serious enough to carry
+// expert costs. Everything here is a first pass for Mike's review.
+
+export interface ProductIntakeData {
+  incidentDate: string // ISO date — drives the SOL clock
+  incidentCounty?: string
+  productName: string
+  brand?: string
+  modelNumber?: string
+  productCategory: 'battery-charger' | 'heater-appliance' | 'ebike-scooter' | 'furniture-tipover' | 'infant-child' | 'tool-equipment' | 'vehicle-part' | 'medical-device' | 'other'
+  hazardType: 'fire-burn' | 'explosion' | 'electric-shock' | 'laceration' | 'fall' | 'choking-ingestion' | 'co-poisoning' | 'entrapment-strangulation' | 'other'
+  recallStatus: 'recalled' | 'not-recalled' | 'unknown'
+  recallNumber?: string
+  campaign?: string // landing-page slug the submission came from (attribution)
+  purchaseChannel: 'amazon-third-party' | 'amazon-direct' | 'big-box' | 'online-retailer' | 'manufacturer-direct' | 'secondhand-gift' | 'unknown'
+  retailerName?: string
+  sellerName?: string
+  manufacturerName?: string
+  purchaseDate?: string // ISO date — drives the repose screen
+  hasReceipt: boolean
+  productPreserved: 'yes' | 'partially' | 'discarded' | 'returned-to-seller' | 'unknown'
+  photosVideo: boolean
+  injurySeverity: 'minor' | 'moderate' | 'serious' | 'catastrophic'
+  fatality: boolean
+  injuredIsMinor: boolean
+  treatmentStatus: 'not-started' | 'treating' | 'complete'
+  providers?: string
+  propertyDamage: 'none' | 'minor' | 'major' | 'total-loss'
+  fireDepartmentReport: boolean
+  insuranceClaimFiled: boolean
+  insurerName?: string
+  contactedManufacturer: boolean
+  acceptedCompensation: boolean
+  cpscReportFiled: boolean
+  priorAttorney: boolean
+  [key: string]: unknown
+}
+
+export function productSolDate(incidentDateISO: string): string {
+  // Two years from the injury (Tex. Civ. Prac. & Rem. Code § 16.003). Death
+  // claims accrue at death and the discovery rule can extend accrual, but the
+  // calendar never assumes the friendlier date.
+  const d = parseISODate(incidentDateISO)
+  d.setUTCFullYear(d.getUTCFullYear() + 2)
+  return toISODate(d)
+}
+
+export function triageProduct(data: ProductIntakeData, now = new Date()): Record<string, unknown> {
+  const escalations: string[] = []
+  const flags: string[] = []
+  const weaknesses: string[] = []
+  const today = parseISODate(texasTodayISO(now))
+
+  // --- Limitations and repose -------------------------------------------------
+  const solDate = productSolDate(data.incidentDate)
+  const solDays = Math.round((parseISODate(solDate).getTime() - today.getTime()) / DAY_MS)
+  if (solDays < 0) {
+    escalations.push('LIMITATIONS APPEARS EXPIRED (2 years from injury, CPRC § 16.003) — attorney review IMMEDIATELY; discovery-rule and death-accrual questions are the only outs')
+  } else if (solDays <= 120) {
+    escalations.push(`LIMITATIONS in ${solDays} days (${solDate}) — inside the 120-day window; product cases need expert work before filing, so the plan must be set now`)
+  }
+
+  let repose = 'unknown — purchase date not provided (repose runs 15 years from the SALE, CPRC § 16.012)'
+  if (data.purchaseDate) {
+    const yearsSinceSale = (today.getTime() - parseISODate(data.purchaseDate).getTime()) / (365.25 * DAY_MS)
+    if (yearsSinceSale >= 15) {
+      repose = `LIKELY BARRED — ${yearsSinceSale.toFixed(1)} years since purchase; 15-year statute of repose (CPRC § 16.012) absent a longer express warranty or latent-disease exception`
+      escalations.push('Statute of repose likely bars the claim — verify the first sale date by the DEFENDANT (repose runs from its sale, not the client\'s purchase)')
+    } else if (yearsSinceSale >= 13) {
+      repose = `BORDERLINE — ${yearsSinceSale.toFixed(1)} years since purchase; pin down the manufacturer's sale date`
+    } else {
+      repose = `within repose (~${yearsSinceSale.toFixed(1)} years since purchase)`
+    }
+  }
+
+  // --- Evidence ---------------------------------------------------------------
+  let evidence: string
+  switch (data.productPreserved) {
+    case 'yes':
+      evidence = 'Product in client\'s possession — SECURE IT NOW: chain-of-custody log, photographs, no testing or disassembly, no return for refund'
+      flags.push('Client still has the product — send the client evidence-preservation letter today; the recall remedy (destroy-and-photograph for a refund) would destroy the case')
+      break
+    case 'partially':
+      evidence = 'Product partially preserved (remnants / damaged unit) — often enough for a fire-origin expert; secure what exists and the scene'
+      flags.push('Partial product only — fire-origin and failure-analysis experts can still work with remnants; secure everything, including the outlet, cord, and surrounding debris')
+      break
+    case 'returned-to-seller':
+      evidence = 'Product returned to the seller — send a preservation demand immediately; the seller\'s retention of it is now the evidence question'
+      escalations.push('Product was returned to the seller — preservation letter out within 24 hours; if the seller destroyed it after notice of the injury, spoliation becomes the lever')
+      break
+    case 'discarded':
+      evidence = 'Product discarded — proof of defect must come from the recall record, other incidents, photographs, and the scene'
+      escalations.push('PRODUCT IS GONE — defect proof depends on photos, recall findings, and the failure pattern; many of these cases are not viable without the unit. Decide early and in writing.')
+      break
+    default:
+      evidence = 'Product status unknown — first call: find out whether the unit still exists'
+      flags.push('Product status unknown — first call must establish whether the unit exists and where it is')
+  }
+  if (!data.photosVideo) flags.push('No photos or video reported — ask the client, family, fire department, and neighbors; CPSC incident reports often include photos')
+  if (!data.hasReceipt) flags.push('No receipt — pull the Amazon or retailer order history (it identifies the seller of record and the sale date, both essential)')
+  if (data.hazardType === 'fire-burn' || data.hazardType === 'explosion') {
+    if (data.fireDepartmentReport) flags.push('Fire department responded — request the incident report and any fire marshal origin-and-cause findings now')
+    else flags.push('Fire or explosion with no fire-department report — origin and cause rests entirely on our expert; retain early')
+  }
+
+  // --- Recall status ----------------------------------------------------------
+  if (data.recallStatus === 'recalled') {
+    flags.push(`Recalled product${data.recallNumber ? ` (CPSC recall ${data.recallNumber})` : ''} — the recall notice is evidence of defect and of notice; pull the CPSC recall file and the incident counts disclosed in the notice`)
+    if (data.purchaseDate) flags.push('Compare the purchase date to the date the seller first received incident reports — a sale made after the seller knew is the strongest fact pattern against a retailer')
+  } else if (data.recallStatus === 'unknown') {
+    flags.push('Recall status unknown — search CPSC recalls and SaferProducts.gov incident reports for the product and model before the first client call')
+  }
+
+  // --- Defendants and collectability ------------------------------------------
+  let defendantRead: string
+  switch (data.purchaseChannel) {
+    case 'amazon-third-party':
+      defendantRead = 'Third-party Amazon storefront sale. Under the Texas Supreme Court\'s Amazon decision, Amazon is not a Chapter 82 "seller" when it never held title, so the realistic defendants are the seller of record and the manufacturer or importer — frequently a foreign entity. Chapter 82\'s nonmanufacturing-seller exceptions (including the one for a manufacturer not amenable to Texas jurisdiction) are the path to any domestic defendant.'
+      weaknesses.push('Amazon marketplace sale — Texas does not treat Amazon as the seller absent title; foreign seller may be uncollectible. Identify any U.S. importer of record before accepting.')
+      break
+    case 'amazon-direct':
+      defendantRead = 'Sold by Amazon itself (Amazon held title) — Amazon is a nonmanufacturing seller under Chapter 82; liability requires one of the statutory exceptions (actual knowledge, altered product, express representation, or an unreachable manufacturer).'
+      flags.push('Confirm from the order history that the seller of record was Amazon.com Services LLC, not a storefront with Amazon fulfillment')
+      break
+    case 'big-box':
+      defendantRead = `Big-box retail sale (${data.retailerName || 'retailer not named'}) — collectible retailer, but a nonmanufacturing seller is protected by Chapter 82 unless an exception applies. The manufacturer or importer is the primary target; the retailer stays in on actual-knowledge or unreachable-manufacturer facts.`
+      break
+    case 'online-retailer':
+      defendantRead = `Online retailer sale (${data.retailerName || 'retailer not named'}) — confirm whether the retailer held title or merely hosted a marketplace listing; the same seller analysis as Amazon applies.`
+      break
+    case 'manufacturer-direct':
+      defendantRead = 'Bought directly from the manufacturer — cleanest chain of distribution; collectability turns on the manufacturer\'s domicile and insurance.'
+      break
+    case 'secondhand-gift':
+      defendantRead = 'Secondhand or gift — the client is not the purchaser; strict liability still runs to users and bystanders, but the sale date and seller must be reconstructed from the original purchaser.'
+      flags.push('Client did not buy the product — identify the original purchaser and their order record')
+      break
+    default:
+      defendantRead = 'Purchase channel unknown — establish where and when the product was bought before anything else'
+  }
+  if (!data.manufacturerName && !data.sellerName) flags.push('No manufacturer or seller named — identify both from the recall notice, product label, packaging, and order history')
+
+  // --- Injury, damages, and track --------------------------------------------
+  if (data.fatality) escalations.push('Fatality — wrongful death and survival claims; immediate attorney involvement (beneficiaries, accrual at death, autopsy and scene evidence)')
+  if (data.injuredIsMinor) escalations.push('Minor claimant — tolling analysis and court approval of any settlement; Mike plans this personally')
+  if (data.priorAttorney) escalations.push('Prior attorney on the case — resolve fee lien and termination before signing')
+  if (data.acceptedCompensation) escalations.push('Client accepted a refund, replacement, or other compensation — obtain every document signed; screen for a release before any work')
+  if (data.contactedManufacturer) flags.push('Client has contacted the manufacturer or seller — get the full written exchange; stop further contact; assume the company has opened a claim file')
+  if (data.insuranceClaimFiled) flags.push(`Homeowner's or renter's claim filed${data.insurerName ? ` with ${data.insurerName}` : ''} — the carrier owns the subrogated property claim; coordinate early so the carrier does not take custody of the product or settle around the injury claim`)
+  if (data.propertyDamage === 'major' || data.propertyDamage === 'total-loss') {
+    flags.push('Major property loss — document contents inventory and displacement costs; the property claim often funds the expert work')
+    if (!data.insuranceClaimFiled) flags.push('Major property loss with no insurance claim reported — confirm coverage; an uninsured total loss changes the damages picture')
+  }
+  if (data.treatmentStatus === 'not-started' && data.injurySeverity !== 'minor') flags.push('No treatment yet for a reported non-minor injury — advise prompt evaluation; untreated injuries read as minor to an adjuster')
+  if (!data.cpscReportFiled) flags.push('No CPSC incident report filed — consider filing one with the client (it is a public record of the incident and prompts a manufacturer response), after Mike approves the wording')
+
+  const severe = data.injurySeverity === 'serious' || data.injurySeverity === 'catastrophic' || data.fatality
+  const productGone = data.productPreserved === 'discarded'
+  let track: 'pursue' | 'review' | 'decline-or-watch'
+  if (severe && !productGone) track = 'pursue'
+  else if (data.injurySeverity === 'minor' && (data.propertyDamage === 'none' || data.propertyDamage === 'minor')) track = 'decline-or-watch'
+  else track = 'review'
+  if (track === 'pursue' && data.purchaseChannel === 'amazon-third-party' && !data.manufacturerName) track = 'review'
+
+  const recommendation =
+    escalations.length > 0
+      ? 'ESCALATE to attorney before signing anything'
+      : track === 'pursue'
+        ? 'Standard contingency track — written fee agreement (Rule 1.04(d)), client evidence letter, and preservation letters to every entity in the chain within 48 hours; retain the failure-analysis expert before the product is touched'
+        : track === 'review'
+          ? 'Attorney review — viable only if the product (or its remnants) exists and a collectible defendant can be identified; evaluate within one business day'
+          : 'Minor injury and little property damage — a product case will not carry expert costs; decline in writing with the CPSC reporting information, or watch if treatment escalates'
+
+  return {
+    matter: 'product-injury',
+    track,
+    severity: data.injurySeverity,
+    evidence,
+    defendantRead,
+    weaknesses,
+    escalations,
+    flags,
+    limitations: { solDate, daysRemaining: solDays, basis: 'Two years from injury (Tex. Civ. Prac. & Rem. Code § 16.003); conservative anchor — tolling and discovery rule not assumed' },
+    repose,
+    recommendation,
+    disclaimer: 'Automated first-pass triage for attorney review — not a legal determination.',
+  }
+}

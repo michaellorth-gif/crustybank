@@ -55,6 +55,11 @@ export function extractParties(matterType: string, clientName: string, data: Rec
   } else if (matterType === 'reduced-fee-mva') {
     if (str('otherDriverName')) parties.push({ name: str('otherDriverName'), role: 'adverse party' })
     if (str('liabilityCarrier')) parties.push({ name: str('liabilityCarrier'), role: 'related party' })
+  } else if (matterType === 'product-injury') {
+    if (str('manufacturerName')) parties.push({ name: str('manufacturerName'), role: 'adverse party' })
+    if (str('sellerName')) parties.push({ name: str('sellerName'), role: 'adverse party' })
+    if (str('retailerName')) parties.push({ name: str('retailerName'), role: 'adverse party' })
+    if (str('insurerName')) parties.push({ name: str('insurerName'), role: 'related party' })
   }
   return parties.filter((p) => p.name.trim().length > 1)
 }

@@ -1,18 +1,19 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Scale, Trash2, AlertTriangle, ChevronDown, ChevronUp, Gavel, FileX2, HeartCrack, ScrollText, Car, Settings, Globe, UserSearch } from 'lucide-react'
+import { Plus, Scale, Trash2, AlertTriangle, ChevronDown, ChevronUp, Gavel, FileX2, HeartCrack, ScrollText, Car, Flame, Settings, Globe, UserSearch, Megaphone } from 'lucide-react'
 import { api } from '../services/api'
 import DebtDefenseForm from '../components/intake/DebtDefenseForm'
 import ExpunctionForm from '../components/intake/ExpunctionForm'
 import DivorceForm from '../components/intake/DivorceForm'
 import EstateForm from '../components/intake/EstateForm'
 import MvaForm from '../components/intake/MvaForm'
+import ProductInjuryForm from '../components/intake/ProductInjuryForm'
 import MatterPanel from '../components/intake/MatterPanel'
 import FirmSettingsModal from '../components/intake/FirmSettingsModal'
 import ConflictsSearchModal from '../components/intake/ConflictsSearchModal'
 import { IntakePayload } from '../components/intake/fields'
 
-type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package' | 'reduced-fee-mva'
+type MatterType = 'debt-defense' | 'expunction' | 'uncontested-divorce' | 'estate-package' | 'reduced-fee-mva' | 'product-injury'
 
 interface LegalIntake {
   id: string
@@ -37,6 +38,7 @@ const matterMeta: Record<MatterType, { label: string; icon: typeof Gavel; color:
   'uncontested-divorce': { label: 'Uncontested Divorce', icon: HeartCrack, color: 'bg-rose-100 text-rose-700' },
   'estate-package': { label: 'Estate Package', icon: ScrollText, color: 'bg-amber-100 text-amber-700' },
   'reduced-fee-mva': { label: 'Reduced-Fee MVA', icon: Car, color: 'bg-emerald-100 text-emerald-700' },
+  'product-injury': { label: 'Product Injury', icon: Flame, color: 'bg-orange-100 text-orange-700' },
 }
 
 const statusColors: Record<string, string> = {
@@ -176,6 +178,9 @@ export default function LegalIntakes() {
             {newIntakeType === 'reduced-fee-mva' && (
               <MvaForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => { setNewIntakeType(null); setSubmitError(null) }} isLoading={createIntake.isPending} />
             )}
+            {newIntakeType === 'product-injury' && (
+              <ProductInjuryForm onSubmit={(p) => createIntake.mutate(p)} onClose={() => { setNewIntakeType(null); setSubmitError(null) }} isLoading={createIntake.isPending} />
+            )}
           </div>
         </div>
       )}
@@ -242,6 +247,11 @@ function IntakeCard({
               {intake.source === 'public' && (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-700" title="Submitted through the public portal">
                   <Globe size={11} /> web
+                </span>
+              )}
+              {typeof intake.data.campaign === 'string' && intake.data.campaign && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700" title="Came in through a recall landing page">
+                  <Megaphone size={11} /> {intake.data.campaign}
                 </span>
               )}
             </div>
@@ -390,6 +400,25 @@ function TriageSummary({ intake }: { intake: LegalIntake }) {
     )
   }
 
+  if (intake.matterType === 'product-injury') {
+    const lim = t.limitations as { solDate: string; daysRemaining: number } | undefined
+    const track = String(t.track || '')
+    const escalate = Array.isArray(t.escalations) && (t.escalations as string[]).length > 0
+    return (
+      <p className="text-sm mt-1">
+        <span className={escalate ? 'text-red-700 font-medium' : track === 'pursue' ? 'text-green-700 font-medium' : track === 'review' ? 'text-orange-700 font-medium' : 'text-gray-600 font-medium'}>
+          {escalate ? 'ESCALATE' : track === 'pursue' ? 'Pursue — standard contingency' : track === 'review' ? 'Attorney review' : 'Decline or watch'}
+        </span>
+        <span className="text-gray-600"> · {String(intake.data.productName || '')}{intake.data.recallNumber ? ` · recall ${String(intake.data.recallNumber)}` : ''} · product: {String(intake.data.productPreserved || '')}</span>
+        {lim && (
+          <span className={lim.daysRemaining <= 180 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+            {' '}· SOL {lim.solDate} ({lim.daysRemaining} days)
+          </span>
+        )}
+      </p>
+    )
+  }
+
   if (intake.matterType === 'estate-package') {
     const eligible = t.packageEligible as boolean
     return (
@@ -423,6 +452,7 @@ function collectFlags(triage: Record<string, unknown>): string[] {
   if (Array.isArray(triage.flags)) flags.push(...(triage.flags as string[]))
   if (Array.isArray(triage.escalations)) flags.push(...(triage.escalations as string[]))
   if (Array.isArray(triage.standardTrackReasons)) flags.push(...(triage.standardTrackReasons as string[]))
+  if (Array.isArray(triage.weaknesses)) flags.push(...(triage.weaknesses as string[]))
   if (Array.isArray(triage.screens)) {
     for (const s of triage.screens as Array<{ label: string; flags?: string[] }>) {
       for (const f of s.flags || []) flags.push(`${s.label}: ${f}`)

@@ -10,11 +10,13 @@ import {
   triageDivorce,
   triageEstate,
   triageMva,
+  triageProduct,
   DebtIntakeData,
   ExpunctionIntakeData,
   DivorceIntakeData,
   EstateIntakeData,
   MvaIntakeData,
+  ProductIntakeData,
 } from '../lib/legalTriage.js'
 import { texasTodayISO } from '../lib/legalTriage.js'
 import { generateDocument, DOC_TYPES, Firm } from '../lib/docgen.js'
@@ -135,7 +137,51 @@ const mvaDataSchema = z.object({
   notes: z.string().optional(),
 }).passthrough()
 
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+
+const productDataSchema = z.object({
+  incidentDate: isoDate,
+  incidentCounty: z.string().optional(),
+  productName: z.string().min(1),
+  brand: z.string().optional(),
+  modelNumber: z.string().optional(),
+  productCategory: z.enum(['battery-charger', 'heater-appliance', 'ebike-scooter', 'furniture-tipover', 'infant-child', 'tool-equipment', 'vehicle-part', 'medical-device', 'other']),
+  hazardType: z.enum(['fire-burn', 'explosion', 'electric-shock', 'laceration', 'fall', 'choking-ingestion', 'co-poisoning', 'entrapment-strangulation', 'other']),
+  recallStatus: z.enum(['recalled', 'not-recalled', 'unknown']),
+  recallNumber: z.string().max(20).optional(),
+  campaign: z.string().max(60).regex(/^[a-z0-9-]*$/).optional(),
+  purchaseChannel: z.enum(['amazon-third-party', 'amazon-direct', 'big-box', 'online-retailer', 'manufacturer-direct', 'secondhand-gift', 'unknown']),
+  retailerName: z.string().optional(),
+  sellerName: z.string().optional(),
+  manufacturerName: z.string().optional(),
+  purchaseDate: isoDate.optional(),
+  hasReceipt: z.boolean(),
+  productPreserved: z.enum(['yes', 'partially', 'discarded', 'returned-to-seller', 'unknown']),
+  photosVideo: z.boolean(),
+  injurySeverity: z.enum(['minor', 'moderate', 'serious', 'catastrophic']),
+  fatality: z.boolean(),
+  injuredIsMinor: z.boolean(),
+  treatmentStatus: z.enum(['not-started', 'treating', 'complete']),
+  providers: z.string().optional(),
+  propertyDamage: z.enum(['none', 'minor', 'major', 'total-loss']),
+  fireDepartmentReport: z.boolean(),
+  insuranceClaimFiled: z.boolean(),
+  insurerName: z.string().optional(),
+  contactedManufacturer: z.boolean(),
+  acceptedCompensation: z.boolean(),
+  cpscReportFiled: z.boolean(),
+  priorAttorney: z.boolean(),
+  notes: z.string().optional(),
+}).passthrough()
+
 const createIntakeSchema = z.discriminatedUnion('matterType', [
+  z.object({
+    matterType: z.literal('product-injury'),
+    clientName: z.string().min(1),
+    clientEmail: z.string().email().optional().or(z.literal('')),
+    clientPhone: z.string().optional(),
+    data: productDataSchema,
+  }),
   z.object({
     matterType: z.literal('debt-defense'),
     clientName: z.string().min(1),
@@ -185,6 +231,8 @@ function runTriage(matterType: string, data: Record<string, unknown>): Record<st
       return triageEstate(data as unknown as EstateIntakeData)
     case 'reduced-fee-mva':
       return triageMva(data as unknown as MvaIntakeData)
+    case 'product-injury':
+      return triageProduct(data as unknown as ProductIntakeData)
     default:
       return {}
   }
@@ -217,6 +265,20 @@ function deadlineTaskValues(
     return {
       title: `MVA LIMITATIONS ${limitations.solDate} — file-or-resolve decision — ${clientName}`,
       description: `Statute of limitations ${limitations.solDate}. ${limitations.basis}. This task is the 90-day decision point: resolve, file suit (reduced fee converts per engagement letter), or document the plan with the attorney.`,
+      priority: 'high',
+      dueDate: decisionPoint,
+    }
+  }
+  if (matterType === 'product-injury') {
+    const limitations = (triage as { limitations?: { solDate: string; basis: string } }).limitations
+    if (!limitations) return null
+    // Product cases need the expert's report before suit, so the decision point
+    // sits 180 days out rather than the MVA track's 90.
+    const decisionPoint = new Date(new Date(`${limitations.solDate}T12:00:00Z`).getTime() - 180 * 86400000)
+      .toISOString().slice(0, 10)
+    return {
+      title: `PRODUCT LIMITATIONS ${limitations.solDate} — file-or-resolve decision — ${clientName} (${String(data.productName || 'product')})`,
+      description: `Statute of limitations ${limitations.solDate}. ${limitations.basis}. This task is the 180-day decision point: suit must be on file with the expert's defect opinion in hand, or the file must document why not.`,
       priority: 'high',
       dueDate: decisionPoint,
     }
@@ -308,6 +370,20 @@ router.get('/deadlines', async (req: AuthRequest, res: Response) => {
             clientName: intake.clientName,
             matterType: intake.matterType,
             label: 'MVA limitations (file suit by)',
+            date: sol,
+            daysLeft: Math.round((new Date(`${sol}T00:00:00Z`).getTime() - todayMs) / 86400000),
+          })
+        }
+      }
+
+      if (intake.matterType === 'product-injury' && !['settled', 'closed'].includes(intake.stage)) {
+        const sol = (intake.triage as { limitations?: { solDate: string } } | null)?.limitations?.solDate
+        if (sol) {
+          deadlines.push({
+            intakeId: intake.id,
+            clientName: intake.clientName,
+            matterType: intake.matterType,
+            label: 'Product limitations (file suit by)',
             date: sol,
             daysLeft: Math.round((new Date(`${sol}T00:00:00Z`).getTime() - todayMs) / 86400000),
           })
@@ -425,6 +501,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
         : intake.matterType === 'expunction' ? expunctionDataSchema
         : intake.matterType === 'estate-package' ? estateDataSchema
         : intake.matterType === 'reduced-fee-mva' ? mvaDataSchema
+        : intake.matterType === 'product-injury' ? productDataSchema
         : divorceDataSchema
       data = schema.parse(merged) as Record<string, unknown>
       triage = runTriage(intake.matterType, data)

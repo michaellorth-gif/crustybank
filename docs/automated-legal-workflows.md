@@ -13,6 +13,7 @@ follow-through**, with honest routing out of the product when a case doesn't fit
 | `uncontested-divorce` | Tier 1 agreed divorce: no kids, no real property | District / CCL family | Hard intake gate, § 6.4035 waiver sequencing, 60-day clock, agreed decree with completeness check |
 | `estate-package` | Simple will + statutory durable POA + medical POA + directive, flat fee | n/a (transactional) | Gate (tax exposure, special needs, contest risk, capacity → route out/escalate), package docgen, signing-ceremony checklist, 3-year review reminder |
 | `reduced-fee-mva` | Reduced contingency (25% pre-suit, converts on filing) for clear-liability car wrecks | Pre-suit (converts if filed) | Hard gate (clear liability only; surgery/catastrophic/commercial/fatality → standard track), 2-year SOL clock (CPRC § 16.003) with 90-day decision-point task, LOR/preservation/records docgen, written contingency agreement (Rule 1.04(d)), demand via the pi-demand-letter skill, lien-resolution close-out |
+| `recall-campaign` + product-injury line | Standard contingency for recalled / defective product injuries, fed by recall-specific landing pages | Pre-suit → district court | Daily CPSC recall screen (scheduled task) → campaign entry + landing page at `/recall/<slug>` with prefilled intake and `campaign` attribution → triage (evidence status, chain-of-distribution and Texas seller analysis, 2-year SOL + 15-year repose screen) → client evidence letter, preservation/litigation-hold letters, LOR, contingency agreement docgen → milestones (product secured, expert opinion, demand, suit filed, settled) → demand via pi-demand-letter |
 
 ## Shared operating rules
 
@@ -36,6 +37,7 @@ The client/server app now implements the full intake-to-resolution pipeline:
 
 | Piece | Where | What it does |
 |---|---|---|
+| Recall landing pages | `/recall/<slug>` (public), registry in `client/src/campaigns.ts` | One page per advertised recall: CPSC facts verbatim, keep-the-evidence guidance, prefilled product-injury form, compliance footer; `draft` pages render only with `?preview=draft` |
 | Intake forms | `/intakes` page (staff) and `/intake` (public, no login) | Structured forms per practice line; public submissions are rate-limited, honeypotted, and carry a no-attorney-client-relationship disclaimer |
 | Triage engine | `server/src/lib/legalTriage.ts` | Answer-deadline computation (TRCP 502.5 / 99), limitations screen, plaintiff classification, ch. 55A eligibility routes and waiting-period dates, divorce Tier 1 gate; runs on every submission |
 | Auto-deadline tasks | intake creation + milestones | Served debt suits create a high-priority task 3 business days before the answer deadline; each recorded milestone creates its downstream deadline tasks |
@@ -50,10 +52,14 @@ API surface: `POST /api/public/intake` (unauthenticated), `GET/POST/PATCH/DELETE
 
 ## Roadmap
 
-- Next products on the same backbone: wills/estate packages (reuses doc-assembly),
-  small estate affidavits / muniment of title, traffic tickets (volume play + PI
-  lead funnel), reduced-fee clear-liability MVA track (extends the existing
-  pi-demand-letter workflow).
+- Built since: estate package, reduced-fee MVA, and the product-injury line with
+  recall campaigns. Next on the same backbone: small estate affidavits / muniment
+  of title, traffic tickets (volume play + PI lead funnel).
+- Recall screen: a daily scheduled task (claude.ai, 7:12am Central) pulls the
+  CPSC recall API and reports ADVERTISE / WATCH / PASS reads; ADVERTISE items go
+  through the `recall-campaign` skill. Delivery is the task session transcript
+  plus push notification until a Gmail-connected routine is created from the
+  claude.ai routines UI.
 - Infrastructure candidates: eFileTexas filing integration, county-holiday-aware
   deadline calendars, DOCX export of generated drafts, e-signature for engagement
   letters, client status portal.

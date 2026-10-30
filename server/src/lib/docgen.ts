@@ -3,8 +3,8 @@
 // placeholders; every document is stamped for attorney review. The generators mirror
 // the templates in .claude/skills/*/templates/.
 
-import type { DebtIntakeData, ExpunctionIntakeData, ExpunctionArrest, DivorceIntakeData, EstateIntakeData, MvaIntakeData } from './legalTriage.js'
-import { mvaSolDate } from './legalTriage.js'
+import type { DebtIntakeData, ExpunctionIntakeData, ExpunctionArrest, DivorceIntakeData, EstateIntakeData, MvaIntakeData, ProductIntakeData } from './legalTriage.js'
+import { mvaSolDate, productSolDate } from './legalTriage.js'
 import { classifyPlaintiff } from './legalTriage.js'
 
 const YEAR_MS = 365.25 * 24 * 3600 * 1000
@@ -798,20 +798,26 @@ ${ph(firm.attorneyName, 'ATTORNEY NAME')}  \n${ph(firm.firmName, 'FIRM NAME')}
 }
 
 export function mvaRecordsRequest(data: MvaIntakeData, clientName: string, firm: Firm): GeneratedDoc {
+  return recordsRequest(data.accidentDate, data.providers, clientName, firm)
+}
+
+// Shared by the MVA and product lines — the request is the same; only the
+// date of injury and the provider list come from the intake.
+function recordsRequest(incidentDate: string, providers: string | undefined, clientName: string, firm: Firm): GeneratedDoc {
   return {
     title: `Medical Records & Billing Request — ${clientName}`,
     category: 'legal-draft',
-    content: `${REVIEW_BANNER}*Generate one per provider. Attach the signed HIPAA authorization. Providers listed at intake: ${ph(data.providers, 'see intake')}.*
+    content: `${REVIEW_BANNER}*Generate one per provider. Attach the signed HIPAA authorization. Providers listed at intake: ${ph(providers, 'see intake')}.*
 
 [DATE]
 
 [PROVIDER NAME]  \nAttn: Medical Records / Release of Information  \n[ADDRESS]
 
-**Re:** Patient: ${clientName} — DOB: [DOB] — Dates of service: ${data.accidentDate} to present
+**Re:** Patient: ${clientName} — DOB: [DOB] — Dates of service: ${incidentDate} to present
 
 To the Custodian of Records:
 
-This firm represents the above patient in connection with injuries sustained on ${data.accidentDate}. Enclosed is a HIPAA-compliant authorization signed by the patient. Please provide:
+This firm represents the above patient in connection with injuries sustained on ${incidentDate}. Enclosed is a HIPAA-compliant authorization signed by the patient. Please provide:
 
 1. **Complete medical records** for the dates of service above, including office notes, imaging reports, operative and procedure notes, therapy notes, prescriptions, and referrals;
 2. An **itemized billing statement** (not a summary or ledger) for all charges, showing CPT codes, amounts billed, adjustments, payments, and payor sources;
@@ -828,7 +834,7 @@ ${ph(firm.attorneyName, 'ATTORNEY NAME')}  \n${ph(firm.firmName, 'FIRM NAME')}  
 
 ## HIPAA AUTHORIZATION FOR RELEASE OF HEALTH INFORMATION
 
-I, ${clientName}, DOB [DOB], SSN [LAST 4 ONLY], authorize [PROVIDER NAME] to release my complete medical and billing records for dates of service ${data.accidentDate} to present to ${ph(firm.firmName, 'FIRM NAME')}, ${ph(firm.address, 'FIRM ADDRESS')}.
+I, ${clientName}, DOB [DOB], SSN [LAST 4 ONLY], authorize [PROVIDER NAME] to release my complete medical and billing records for dates of service ${incidentDate} to present to ${ph(firm.firmName, 'FIRM NAME')}, ${ph(firm.address, 'FIRM ADDRESS')}.
 
 - Purpose: legal representation. This authorization excludes psychotherapy notes.
 - [STRIKE IF NOT APPLICABLE: This authorization includes records relating to mental health (other than psychotherapy notes), HIV/AIDS, and drug/alcohol treatment.]
@@ -873,6 +879,192 @@ If there is no recovery, Client owes no attorney's fee.
 **8. Power of attorney.** Client appoints the Firm to take all lawful steps to prosecute the claims, including [endorsing settlement drafts for deposit into the Firm's trust account — MIKE CONFIRMS SCOPE].
 
 **9. Termination.** Client may terminate at any time; the Firm may withdraw as permitted by the Texas Disciplinary Rules. On termination after substantial work, the Firm [reserves a fee interest per quantum meruit / as stated here: ___]. [MIKE DRAFTS]
+
+AGREED:
+
+${'\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_'}  \n${clientName}, Client — Date: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_
+
+${'\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_'}  \n${ph(firm.attorneyName, 'ATTORNEY NAME')}, ${ph(firm.firmName, 'FIRM NAME')} — Date: \\_\\_\\_\\_\\_\\_\\_\\_\\_\\_
+`,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Product injury (recall / defective product)
+
+function productLabel(data: ProductIntakeData): string {
+  const parts = [data.brand, data.productName, data.modelNumber ? `model ${data.modelNumber}` : ''].filter((x) => x && x.trim())
+  return parts.join(' ')
+}
+
+function recallLine(data: ProductIntakeData): string {
+  if (data.recallStatus !== 'recalled') return ''
+  return `This product is the subject of a U.S. Consumer Product Safety Commission recall${data.recallNumber ? ` (Recall No. ${data.recallNumber})` : ''}. `
+}
+
+export function productClientEvidenceLetter(data: ProductIntakeData, clientName: string, firm: Firm): GeneratedDoc {
+  return {
+    title: `Client Evidence Instructions — ${clientName} (${productLabel(data)})`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Send the same day the client signs. In a product case the product IS the case; the recall remedy (write "recalled" on it, photograph, destroy, get a refund) destroys it.*
+
+[DATE]
+
+${clientName}  \n[CLIENT ADDRESS]
+
+**Re: Protecting the evidence in your case — ${productLabel(data)} — incident of ${data.incidentDate}**
+
+Dear ${clientName}:
+
+Thank you for trusting us with your case. Before anything else, we need to protect the physical evidence. Please read this carefully and call us with any question at all.
+
+**1. Do not throw away, return, repair, test, or clean the product.** Keep ${productLabel(data)} exactly as it is, along with the cord, charger, packaging, manuals, and anything it was plugged into or sitting on. If it is burned or in pieces, keep every piece, including debris from the area where it was.${data.recallStatus === 'recalled' ? `
+
+**2. Do not follow the recall's refund instructions.** ${recallLine(data)}The recall tells consumers to mark the product, photograph it, destroy it, and request a refund. **Do not do this.** The refund is small; the product is the proof of what happened to you. We will deal with the company directly, and nothing you are entitled to will be lost.` : `
+
+**2. If a recall is announced for this product,** do not follow any instruction to destroy or return it. Call us first.`}
+
+**3. Do not plug it in or try to make it work.** Even a quick test can change the evidence inside it.
+
+**4. Store it safely.** Put it in a box or bag, label it with the date, and keep it somewhere dry where no one else will handle it. If you prefer, we will pick it up and store it; many clients find that easier. Either way, write down who has had it and when, starting now.
+
+**5. Photographs and video.** Send us every photo or video you, your family, or neighbors took of the product, the injuries, and the scene, including anything posted to social media (and please do not post anything further about the incident).
+
+**6. Paperwork.** Forward the order confirmation or receipt, the product listing if you bought it online (a screenshot of your order history is perfect), any recall notice you received, and any email or chat with the seller or manufacturer.
+
+**7. Do not talk to the company, its insurer, or any investigator.** If anyone contacts you about the incident, take their name and number and tell them your attorney will call. Do not give a recorded statement. Do not sign anything, and do not accept a refund, replacement, gift card, or payment of any kind without talking to us.${data.insuranceClaimFiled ? `
+
+**8. Your insurance claim.** You told us a claim was filed with ${ph(data.insurerName, 'your insurer')}. Keep cooperating with your own insurer on the property loss, but please tell the adjuster that the product itself is evidence in an injury claim and must not be taken, tested, or discarded without our agreement. Send us the adjuster's name and claim number.` : ''}
+
+**${data.insuranceClaimFiled ? '9' : '8'}. Keep treating.** Follow your doctors' instructions and keep every appointment. Keep a simple daily note of pain, limitations, and expenses.
+
+Texas generally allows two years from the date of injury to file suit, but the evidence in a product case can disappear in days. Everything above is about making sure it does not.
+
+Sincerely,
+
+${ph(firm.attorneyName, 'ATTORNEY NAME')}  \n${ph(firm.firmName, 'FIRM NAME')}  \n${ph(firm.phone, 'PHONE')} · ${ph(firm.email, 'EMAIL')}
+`,
+  }
+}
+
+export function productPreservation(data: ProductIntakeData, clientName: string, firm: Firm): GeneratedDoc {
+  const marketplace = data.purchaseChannel === 'amazon-third-party' || data.purchaseChannel === 'amazon-direct' || data.purchaseChannel === 'online-retailer'
+  return {
+    title: `Preservation of Evidence Letter — ${clientName} (${productLabel(data)})`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Generate one copy per recipient: the manufacturer, the seller of record, the retailer or marketplace, and any importer identified. Certified mail RRR plus email to the legal department. The marketplace variant at the end asks for the records that identify who actually sold the product.*
+
+[DATE]
+
+VIA CERTIFIED MAIL RRR AND EMAIL
+
+${ph(data.manufacturerName, 'MANUFACTURER')}  \nAttn: Legal Department / Registered Agent  \n[ADDRESS]
+
+**Re: PRESERVATION OF EVIDENCE — ${productLabel(data)} — Incident of ${data.incidentDate}, ${ph(data.incidentCounty, 'COUNTY')} County, Texas — Claimant: ${clientName}**
+
+To whom it may concern:
+
+This firm represents ${clientName}, who was injured on ${data.incidentDate} when ${productLabel(data)} ${data.hazardType === 'fire-burn' || data.hazardType === 'explosion' ? 'overheated and ignited' : 'failed'} during ordinary use. ${recallLine(data)}You are placed on notice that litigation is reasonably anticipated, and that you have a duty to preserve all evidence relevant to this product and this incident. Specifically, do not destroy, alter, discard, or overwrite, and take affirmative steps to preserve:
+
+1. All design, engineering, specification, and change-control documents for the product and its components, including the battery, cell, charging circuit, thermal protection, and enclosure [ADAPT TO PRODUCT];
+2. All testing, certification, and compliance records (UL or other listing files, factory audit reports, incoming-inspection records, and failure analyses);
+3. All **consumer complaints, incident reports, warranty claims, returns, and safety reports** concerning this product and model, from first sale to the present, including every report submitted to the U.S. Consumer Product Safety Commission and all correspondence with the CPSC${data.recallStatus === 'recalled' ? ', including the complete recall file' : ''};
+4. All records identifying the manufacturer, importer, distributor, and seller of each unit, including the unit sold to our client (order, SKU, ASIN, lot, date code, and date-of-sale records);
+5. All marketing, listing, labeling, and instruction materials used for the product, with dates of each version;
+6. All communications with our client or any member of the client's household; and
+7. Any exemplar units, returned units, and physical evidence from other incidents involving this model.
+
+If the product involved in our client's incident, or any part of it, is in your possession or the possession of anyone acting for you, do not test, disassemble, repair, or dispose of it. We will propose a joint, non-destructive inspection protocol so that any later examination is conducted with notice to all parties.
+
+Failure to preserve this evidence after notice may give rise to a spoliation instruction or other sanctions. Please confirm in writing within ten (10) days that a litigation hold is in place and identify the custodian responsible for it. All further communication concerning this matter should be directed to this office; do not contact our client.
+
+Sincerely,
+
+${ph(firm.attorneyName, 'ATTORNEY NAME')}  \n${ph(firm.firmName, 'FIRM NAME')}  \n${ph(firm.phone, 'PHONE')} · ${ph(firm.email, 'EMAIL')}
+
+---
+
+*[SELLER-OF-RECORD VARIANT — addressed to ${ph(data.sellerName, 'SELLER OF RECORD')}: same demand; add — "Please identify the manufacturer and importer of the product, with addresses and your purchase records for the lot or shipment from which our client's unit was sold."]*
+${marketplace ? `
+*[MARKETPLACE / RETAILER VARIANT — addressed to ${ph(data.retailerName, 'MARKETPLACE / RETAILER')}: add — "Please preserve and identify (a) the seller-of-record account for the listing from which our client's unit was sold, including the account holder's legal name, registered address, and country; (b) whether the product was warehoused, fulfilled, or shipped by you, and all records showing who held title at each step; (c) every customer complaint, review flagged for safety, return reason code, and A-to-Z or safety-incident report concerning this listing or product, with dates; and (d) all communications with the seller, the manufacturer, and the CPSC concerning the product's safety${data.recallStatus === 'recalled' ? ' and recall' : ''}." These records decide the seller analysis under Texas law; request them before the listing and account are closed.]*` : ''}
+`,
+  }
+}
+
+export function productLor(data: ProductIntakeData, clientName: string, firm: Firm): GeneratedDoc {
+  return {
+    title: `Letter of Representation / Notice of Claim — ${clientName} (${productLabel(data)})`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Send to each company in the chain and, once identified, its liability insurer. Pair with the preservation letter. Do not state an amount; a demand follows the expert's work.*
+
+[DATE]
+
+VIA CERTIFIED MAIL RRR AND EMAIL
+
+${ph(data.manufacturerName, 'MANUFACTURER / SELLER')}  \nAttn: Risk Management / Legal Department  \n[ADDRESS]
+
+**Re:** Our client: ${clientName}  \nProduct: ${productLabel(data)}${data.recallNumber ? `  \nCPSC Recall No.: ${data.recallNumber}` : ''}  \nDate of incident: ${data.incidentDate}  \nLocation: ${ph(data.incidentCounty, 'COUNTY')} County, Texas
+
+To whom it may concern:
+
+This firm represents ${clientName} for all claims arising from injuries${data.propertyDamage === 'major' || data.propertyDamage === 'total-loss' ? ' and property damage' : ''} sustained on ${data.incidentDate} when the product identified above ${data.hazardType === 'fire-burn' || data.hazardType === 'explosion' ? 'overheated and ignited' : 'failed'} during ordinary use. ${recallLine(data)}
+
+Effective immediately:
+
+1. **All communications** concerning this incident must be directed to this office. Do not contact our client or any member of the client's household.
+2. **No recorded or written statement** of our client is authorized. If any statement, refund request, warranty claim, or incident report was previously obtained from our client, please provide a complete copy.
+3. Please **identify, within fourteen (14) days**, every liability insurer and policy that may afford coverage for this incident, with policy numbers and limits, and forward this letter to each carrier.
+4. Please **identify every other entity in the chain of distribution** for the product sold to our client: manufacturer, importer of record, distributor, and seller of record, with addresses.
+5. Preserve all evidence as described in our separate preservation letter of this date.
+
+This letter is not a demand and nothing in it waives any right or claim, all of which are expressly reserved. A settlement demand will follow the completion of our investigation and our client's treatment.
+
+Sincerely,
+
+${ph(firm.attorneyName, 'ATTORNEY NAME')}  \nState Bar No. ${ph(firm.barNumber, 'BAR NUMBER')}  \n${ph(firm.firmName, 'FIRM NAME')}  \n${ph(firm.phone, 'PHONE')} · ${ph(firm.email, 'EMAIL')}
+`,
+  }
+}
+
+export function productRecordsRequest(data: ProductIntakeData, clientName: string, firm: Firm): GeneratedDoc {
+  return recordsRequest(data.incidentDate, data.providers, clientName, firm)
+}
+
+export function productContingencyAgreement(data: ProductIntakeData, clientName: string, firm: Firm): GeneratedDoc {
+  const sol = productSolDate(data.incidentDate)
+  return {
+    title: `Contingency Fee Agreement (Product Injury) — ${clientName}`,
+    category: 'legal-draft',
+    content: `${REVIEW_BANNER}*Contingency fee agreements MUST be in writing and signed (Tex. Disciplinary R. Prof. Conduct 1.04(d)). Product cases carry expert costs that ordinary PI cases do not; the expense paragraph has to say so plainly. Mike sets the percentages.*
+
+# POWER OF ATTORNEY AND CONTINGENCY FEE AGREEMENT
+### Product Injury Claim
+
+Client: **${clientName}**  \nMatter: claims arising from injuries${data.propertyDamage === 'major' || data.propertyDamage === 'total-loss' ? ' and property damage' : ''} caused by **${productLabel(data)}** on **${data.incidentDate}** in ${ph(data.incidentCounty, 'COUNTY')} County, Texas.
+
+**1. Engagement.** Client retains ${ph(firm.firmName, 'FIRM NAME')} ("the Firm") to investigate and pursue Client's claims against the manufacturer, importer, distributor, seller, and any other party responsible for the product described above, and against any insurer providing coverage for those claims.
+
+**2. Contingent fee.** The Firm's fee is contingent on recovery and is calculated on the gross amount recovered:
+- **[33⅓]% of the gross recovery** if the claim resolves **before suit is filed**;
+- **[40]% of the gross recovery** if resolution requires **filing suit**; and
+- **[45]% of the gross recovery** if resolution occurs **after an appeal is perfected**.
+If there is no recovery, Client owes no attorney's fee.
+
+**3. Expenses.** Product cases require engineering and fire-origin experts, laboratory testing, evidence storage, and, where a defendant is outside the United States, international service of process. The Firm advances these and other reasonable case expenses. Expenses are itemized and reimbursed from the recovery in addition to the fee. If there is no recovery, Client [is not / is] responsible for expenses advanced. [MIKE SELECTS]
+
+**4. Evidence.** Client agrees to preserve the product and all related items as instructed by the Firm, to deliver them to the Firm on request, and not to return, destroy, test, or accept any refund or replacement for the product without the Firm's written agreement.
+
+**5. Medical bills, liens, and insurance.** Amounts owed to health care providers, health plans, hospital lien holders (Tex. Prop. Code ch. 55), Medicare/Medicaid, and any property insurer that paid for the loss are Client's obligations, paid from Client's share of the recovery. The Firm will seek reductions of these amounts as part of the representation.
+
+**6. No settlement without Client's consent.** The Firm will not settle Client's claim without Client's authority, and Client will not settle directly with any company or insurer while this agreement is in effect. A signed closing statement itemizing the recovery, fee, expenses, and disbursements will be provided before funds are disbursed.
+
+**7. Limitations.** Suit on these claims generally must be filed by **${sol}** (two years from the injury, Tex. Civ. Prac. & Rem. Code § 16.003). The Firm will confer with Client well before that date about filing suit.
+
+**8. No guaranteed outcome.** The Firm makes no promise about the result or the amount of any recovery. The Firm may conclude after investigation that the claim cannot be proved or collected, in which case it will tell Client promptly and in writing.
+
+**9. Power of attorney.** Client appoints the Firm to take all lawful steps to prosecute the claims, including [endorsing settlement drafts for deposit into the Firm's trust account — MIKE CONFIRMS SCOPE].
+
+**10. Termination.** Client may terminate at any time; the Firm may withdraw as permitted by the Texas Disciplinary Rules. On termination after substantial work, the Firm [reserves a fee interest per quantum meruit / as stated here: ___]. [MIKE DRAFTS]
 
 AGREED:
 
@@ -984,6 +1176,13 @@ export const DOC_TYPES: Record<string, Array<{ id: string; label: string }>> = {
     { id: 'records-request', label: 'Records request + HIPAA authorization' },
     { id: 'engagement-letter', label: 'Contingency fee agreement' },
   ],
+  'product-injury': [
+    { id: 'client-evidence-letter', label: 'Client evidence instructions' },
+    { id: 'preservation', label: 'Preservation / litigation-hold letter' },
+    { id: 'lor', label: 'Letter of representation + notice of claim' },
+    { id: 'records-request', label: 'Records request + HIPAA authorization' },
+    { id: 'engagement-letter', label: 'Contingency fee agreement' },
+  ],
 }
 
 export function generateDocument(
@@ -1001,6 +1200,14 @@ export function generateDocument(
     if (docType === 'preservation') return mvaPreservation(d, clientName, firm)
     if (docType === 'records-request') return mvaRecordsRequest(d, clientName, firm)
     if (docType === 'engagement-letter') return mvaEngagementLetter(d, clientName, firm)
+  }
+  if (matterType === 'product-injury') {
+    const d = data as unknown as ProductIntakeData
+    if (docType === 'client-evidence-letter') return productClientEvidenceLetter(d, clientName, firm)
+    if (docType === 'preservation') return productPreservation(d, clientName, firm)
+    if (docType === 'lor') return productLor(d, clientName, firm)
+    if (docType === 'records-request') return productRecordsRequest(d, clientName, firm)
+    if (docType === 'engagement-letter') return productContingencyAgreement(d, clientName, firm)
   }
   if (docType === 'engagement-letter') return engagementLetter(matterType, clientName, firm)
 
